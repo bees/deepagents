@@ -31,6 +31,7 @@ from deepagents_cli.config import (
     _detect_charset_mode,
     build_langsmith_thread_url,
     get_glyphs,
+    theme,
 )
 from deepagents_cli.sessions import ThreadInfo
 from deepagents_cli.widgets._links import open_style_link
@@ -712,7 +713,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
                 "Select Thread (current: ",
                 (
                     self._current_thread,
-                    TStyle(foreground=TColor.parse("cyan"), link=thread_url),
+                    TStyle(foreground=TColor.parse(theme.link), link=thread_url),
                 ),
                 ")",
             )
@@ -873,7 +874,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         """Fetch threads, configure border for ASCII terminals, and build the list."""
         if _detect_charset_mode() == CharsetMode.ASCII:
             container = self.query_one("#thread-selector-shell", Vertical)
-            container.styles.border = ("ascii", "green")
+            container.styles.border = ("ascii", theme.border_success)
 
         filter_input = self._get_filter_input()
         self._filter_focus_order()

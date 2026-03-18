@@ -101,18 +101,408 @@ if TYPE_CHECKING:
 DOCS_URL = "https://docs.langchain.com/oss/python/deepagents/cli"
 """URL for deepagents-cli documentation."""
 
-COLORS = {
-    "primary": "#10b981",
-    "primary_dev": "#f97316",
-    "dim": "#6b7280",
-    "user": "#ffffff",
-    "agent": "#10b981",
-    "thinking": "#34d399",
-    "tool": "#fbbf24",
-    "mode_shell": "#ff1493",
-    "mode_command": "#8b5cf6",
+
+@dataclass
+class Theme:
+    """Color theme for the CLI.
+
+    All fields are CSS color strings (hex, named, etc.). The theme is loaded
+    once at startup and can be customized via `~/.deepagents/theme.yaml` or
+    a project-level `.deepagents/theme.yaml`.
+    """
+
+    # Textual base colors (drive the Textual ColorSystem)
+    appearance: str = "dark"
+    background: str = ""
+    foreground: str = ""
+    surface: str = ""
+    panel: str = ""
+    accent: str = ""
+    secondary: str = ""
+
+    # Brand / accent
+    primary: str = "#10b981"
+    primary_dev: str = "#f97316"
+
+    # Semantic
+    success: str = "#10b981"
+    warning: str = "#f59e0b"
+    error: str = "#ef4444"
+    info: str = "#3b82f6"
+
+    # Text
+    text: str = "#ffffff"
+    text_muted: str = "#6b7280"
+
+    # Message roles
+    user: str = "#ffffff"
+    agent: str = "#10b981"
+    thinking: str = "#34d399"
+    tool: str = "#fbbf24"
+
+    # Mode indicators
+    mode_shell: str = "#ff1493"
+    mode_command: str = "#8b5cf6"
+
+    # Diff
+    diff_added_fg: str = "#8ce99a"
+    diff_added_bg: str = "#1e4620"
+    diff_removed_fg: str = "#ff8787"
+    diff_removed_bg: str = "#4a2020"
+
+    # Status bar
+    auto_approve_on: str = "#10b981"
+    auto_approve_off: str = "#f59e0b"
+
+    # Tool call widget
+    tool_border: str = "#3b3b3b"
+    tool_border_hover: str = "#525252"
+    tool_args: str = "#6b7280"
+    tool_status_pending: str = "#f59e0b"
+    tool_status_success: str = "#10b981"
+    tool_status_error: str = "#ef4444"
+    tool_status_rejected: str = "#f59e0b"
+    tool_output_hint: str = "#6b7280"
+    tool_header: str = "#f59e0b"
+
+    # User message widget
+    user_border: str = "#10b981"
+    queued_border: str = "#6b7280"
+    queued_text: str = "#9ca3af"
+    command_highlight: str = "#fbbf24"
+    mention_highlight: str = "#10b981"
+
+    # Ls-output file type colors
+    ls_python: str = "#3b82f6"
+    ls_config: str = "#f59e0b"
+    ls_directory: str = "#10b981"
+
+    # Error message
+    error_bg: str = "#7f1d1d"
+    error_fg: str = "white"
+
+    # Borders
+    border_focus: str = "cyan"
+    border_success: str = "green"
+    border_warning: str = "yellow"
+    border_error: str = "red"
+
+    # Skill source labels
+    skill_user: str = "cyan"
+    skill_project: str = "green"
+    skill_builtin: str = "magenta"
+
+    # Misc UI
+    link: str = "cyan"
+    summarization: str = "cyan"
+
+    def as_colors_dict(self) -> dict[str, str]:
+        """Return a dict matching the legacy `COLORS` keys.
+
+        This bridges old code that indexes `COLORS["primary"]` etc. with the
+        new dataclass-based theme.
+        """
+        return {
+            "primary": self.primary,
+            "primary_dev": self.primary_dev,
+            "dim": self.text_muted,
+            "user": self.user,
+            "agent": self.agent,
+            "thinking": self.thinking,
+            "tool": self.tool,
+            "mode_shell": self.mode_shell,
+            "mode_command": self.mode_command,
+        }
+
+    def to_textual_theme(self) -> "TextualTheme":
+        """Build a Textual ``Theme`` from this deepagents theme.
+
+        Maps the deepagents color fields onto Textual's ``ColorSystem`` so
+        that ``$primary``, ``$background``, ``$surface``, etc. CSS variables
+        are driven by the user's theme file.
+
+        Returns:
+            A ``textual.theme.Theme`` ready for ``App.register_theme()``.
+        """
+        from textual.theme import Theme as TextualTheme
+
+        is_dark = self.appearance != "light"
+
+        kwargs: dict[str, Any] = {
+            "name": "deepagents",
+            "primary": self.primary,
+            "dark": is_dark,
+            "warning": self.warning,
+            "error": self.error,
+            "success": self.success,
+        }
+        if self.secondary:
+            kwargs["secondary"] = self.secondary
+        if self.accent:
+            kwargs["accent"] = self.accent
+        if self.foreground:
+            kwargs["foreground"] = self.foreground
+        if self.background:
+            kwargs["background"] = self.background
+        if self.surface:
+            kwargs["surface"] = self.surface
+        if self.panel:
+            kwargs["panel"] = self.panel
+
+        return TextualTheme(**kwargs)
+
+
+# -- Built-in themes --------------------------------------------------------
+
+BUILTIN_THEMES: dict[str, dict[str, str]] = {
+    "dark": {},
+    "light": {
+        "appearance": "light",
+        "background": "#f5f5f5",
+        "foreground": "#1f2937",
+        "surface": "#e5e7eb",
+        "panel": "#d1d5db",
+        "primary": "#059669",
+        "primary_dev": "#ea580c",
+        "success": "#059669",
+        "warning": "#d97706",
+        "error": "#dc2626",
+        "info": "#2563eb",
+        "text": "#1f2937",
+        "text_muted": "#6b7280",
+        "user": "#1f2937",
+        "agent": "#059669",
+        "thinking": "#10b981",
+        "tool": "#d97706",
+        "mode_shell": "#db2777",
+        "mode_command": "#7c3aed",
+        "diff_added_fg": "#166534",
+        "diff_added_bg": "#dcfce7",
+        "diff_removed_fg": "#991b1b",
+        "diff_removed_bg": "#fee2e2",
+        "auto_approve_on": "#059669",
+        "auto_approve_off": "#d97706",
+        "tool_border": "#d1d5db",
+        "tool_border_hover": "#9ca3af",
+        "tool_args": "#6b7280",
+        "tool_status_pending": "#d97706",
+        "tool_status_success": "#059669",
+        "tool_status_error": "#dc2626",
+        "tool_status_rejected": "#d97706",
+        "tool_output_hint": "#6b7280",
+        "tool_header": "#d97706",
+        "user_border": "#059669",
+        "queued_border": "#9ca3af",
+        "queued_text": "#6b7280",
+        "command_highlight": "#d97706",
+        "mention_highlight": "#059669",
+        "ls_python": "#2563eb",
+        "ls_config": "#d97706",
+        "ls_directory": "#059669",
+        "error_bg": "#fee2e2",
+        "error_fg": "#991b1b",
+        "border_focus": "blue",
+        "border_success": "green",
+        "border_warning": "#d97706",
+        "border_error": "red",
+        "skill_user": "blue",
+        "skill_project": "green",
+        "skill_builtin": "magenta",
+        "link": "blue",
+        "summarization": "blue",
+    },
+    "solarized-dark": {
+        "primary": "#2aa198",
+        "primary_dev": "#cb4b16",
+        "success": "#859900",
+        "warning": "#b58900",
+        "error": "#dc322f",
+        "info": "#268bd2",
+        "text": "#839496",
+        "text_muted": "#586e75",
+        "user": "#93a1a1",
+        "agent": "#2aa198",
+        "thinking": "#859900",
+        "tool": "#b58900",
+        "mode_shell": "#d33682",
+        "mode_command": "#6c71c4",
+        "diff_added_fg": "#859900",
+        "diff_added_bg": "#1a2e1a",
+        "diff_removed_fg": "#dc322f",
+        "diff_removed_bg": "#2e1a1a",
+        "auto_approve_on": "#859900",
+        "auto_approve_off": "#b58900",
+        "tool_border": "#586e75",
+        "tool_border_hover": "#657b83",
+        "tool_args": "#586e75",
+        "tool_status_pending": "#b58900",
+        "tool_status_success": "#859900",
+        "tool_status_error": "#dc322f",
+        "tool_status_rejected": "#b58900",
+        "tool_output_hint": "#586e75",
+        "tool_header": "#b58900",
+        "user_border": "#2aa198",
+        "queued_border": "#586e75",
+        "queued_text": "#657b83",
+        "command_highlight": "#b58900",
+        "mention_highlight": "#2aa198",
+        "ls_python": "#268bd2",
+        "ls_config": "#b58900",
+        "ls_directory": "#2aa198",
+        "error_bg": "#3c1010",
+        "error_fg": "#eee8d5",
+        "border_focus": "#268bd2",
+        "border_success": "#859900",
+        "border_warning": "#b58900",
+        "border_error": "#dc322f",
+        "skill_user": "#268bd2",
+        "skill_project": "#859900",
+        "skill_builtin": "#d33682",
+        "link": "#268bd2",
+        "summarization": "#268bd2",
+    },
 }
-"""App color scheme."""
+"""Built-in theme overrides keyed by name.
+
+`"dark"` is an empty dict because the `Theme` defaults *are* the dark theme.
+"""
+
+
+def _theme_field_names() -> frozenset[str]:
+    """Return the set of valid `Theme` field names."""
+    import dataclasses as _dc
+
+    return frozenset(f.name for f in _dc.fields(Theme))
+
+
+def _load_theme_file(path: Path) -> dict[str, str]:
+    """Load theme overrides from a YAML file.
+
+    Only keys that match `Theme` field names are kept; unknown keys are
+    silently ignored so that forward-compatible files don't break older CLIs.
+
+    Args:
+        path: Path to a YAML theme file.
+
+    Returns:
+        Dict of valid theme overrides.
+    """
+    import yaml
+
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        logger.debug("Could not read theme file %s", path)
+        return {}
+
+    try:
+        data = yaml.safe_load(raw)
+    except yaml.YAMLError:
+        logger.warning("Invalid YAML in theme file %s", path)
+        return {}
+
+    if not isinstance(data, dict):
+        logger.warning("Theme file %s is not a YAML mapping", path)
+        return {}
+
+    valid = _theme_field_names()
+    return {k: str(v) for k, v in data.items() if k in valid}
+
+
+def load_theme(
+    *,
+    project_root: Path | None = None,
+    theme_name: str | None = None,
+) -> Theme:
+    """Build a `Theme` with cascading overrides.
+
+    Resolution order (later wins):
+    1. `Theme()` defaults (the built-in dark theme)
+    2. Built-in named theme if `theme_name` matches a key in `BUILTIN_THEMES`
+    3. `~/.deepagents/theme.yaml` (user-level customization)
+    4. `{project_root}/.deepagents/theme.yaml` (project-level customization)
+
+    If `theme_name` is a filesystem path that exists, it is loaded as a custom
+    theme file instead of looking up `BUILTIN_THEMES`.
+
+    Args:
+        project_root: Project root directory for project-level overrides.
+        theme_name: Built-in theme name or path to a custom YAML theme file.
+
+    Returns:
+        Fully resolved `Theme` instance.
+    """
+    overrides: dict[str, str] = {}
+
+    if theme_name:
+        custom_path = Path(theme_name).expanduser()
+        if custom_path.is_file():
+            overrides.update(_load_theme_file(custom_path))
+        elif theme_name in BUILTIN_THEMES:
+            overrides.update(BUILTIN_THEMES[theme_name])
+        else:
+            logger.warning(
+                "Unknown theme '%s'; using defaults. "
+                "Available built-in themes: %s",
+                theme_name,
+                ", ".join(sorted(BUILTIN_THEMES)),
+            )
+
+    user_theme_path = Path.home() / ".deepagents" / "theme.yaml"
+    if user_theme_path.is_file():
+        overrides.update(_load_theme_file(user_theme_path))
+
+    if project_root is not None:
+        project_theme_path = project_root / ".deepagents" / "theme.yaml"
+        if project_theme_path.is_file():
+            overrides.update(_load_theme_file(project_theme_path))
+
+    return Theme(**overrides) if overrides else Theme()
+
+
+def apply_theme(new_theme: Theme) -> None:
+    """Replace the active theme in-place.
+
+    Mutates the module-level `theme` singleton so that all references
+    (including the legacy `COLORS` proxy) pick up the new values.
+
+    Args:
+        new_theme: Theme instance to apply.
+    """
+    import dataclasses as _dc
+
+    for field in _dc.fields(Theme):
+        setattr(theme, field.name, getattr(new_theme, field.name))
+
+
+class _ColorsProxy(dict):  # noqa: FURB189
+    """Dict-like proxy that reads from the active `Theme`.
+
+    Allows existing `COLORS["primary"]` usage to keep working while the
+    underlying data is driven by the `Theme` dataclass.
+    """
+
+    def __init__(self, theme_ref: Theme) -> None:
+        super().__init__(theme_ref.as_colors_dict())
+        self._theme = theme_ref
+
+    def _sync(self) -> None:
+        super().update(self._theme.as_colors_dict())
+
+    def __getitem__(self, key: str) -> str:
+        self._sync()
+        return super().__getitem__(key)
+
+    def get(self, key: str, default: str | None = None) -> str | None:  # type: ignore[override]
+        self._sync()
+        return super().get(key, default)
+
+
+theme = Theme()
+"""Active color theme instance."""
+
+COLORS: dict[str, str] = _ColorsProxy(theme)
+"""Legacy color dict — reads from `theme`."""
 
 MODE_PREFIXES: dict[str, str] = {
     "shell": "!",
@@ -968,6 +1358,14 @@ class Settings:
 
 # Global settings instance (initialized once)
 settings = Settings.from_environment(start_path=_bootstrap_start_path)
+
+# Load theme using project root from settings and optional env override
+_theme_env = os.environ.get("DA_THEME")
+_loaded_theme = load_theme(
+    project_root=settings.project_root,
+    theme_name=_theme_env,
+)
+apply_theme(_loaded_theme)
 
 
 class SessionState:

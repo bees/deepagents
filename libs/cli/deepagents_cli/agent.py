@@ -35,12 +35,12 @@ if TYPE_CHECKING:
     from deepagents_cli.output import OutputFormat
 
 from deepagents_cli.config import (
-    COLORS,
     config,
     console,
     get_default_coding_instructions,
     get_glyphs,
     settings,
+    theme,
 )
 from deepagents_cli.configurable_model import ConfigurableModelMiddleware
 from deepagents_cli.integrations.sandbox_factory import get_default_working_dir
@@ -98,7 +98,9 @@ def load_async_subagents(config_path: Path | None = None) -> list[AsyncSubAgent]
     except (tomllib.TOMLDecodeError, PermissionError, OSError) as e:
         logger.warning("Could not read async subagents from %s: %s", config_path, e)
         console.print(
-            f"[bold yellow]Warning:[/bold yellow] Could not read async subagents "
+            f"[bold {theme.warning}]Warning:"
+            f"[/bold {theme.warning}] "
+            f"Could not read async subagents "
             f"from {config_path}: {e}",
         )
         return []
@@ -147,11 +149,11 @@ def list_agents(*, output_format: OutputFormat = "text") -> None:
 
             write_json("list", [])
             return
-        console.print("[yellow]No agents found.[/yellow]")
+        console.print(f"[{theme.warning}]No agents found.[/{theme.warning}]")
         console.print(
             "[dim]Agents will be created in ~/.deepagents/ "
             "when you first use them.[/dim]",
-            style=COLORS["dim"],
+            style=theme.text_muted,
         )
         return
 
@@ -175,7 +177,7 @@ def list_agents(*, output_format: OutputFormat = "text") -> None:
 
     from rich.markup import escape as escape_markup
 
-    console.print("\n[bold]Available Agents:[/bold]\n", style=COLORS["primary"])
+    console.print("\n[bold]Available Agents:[/bold]\n", style=theme.primary)
 
     for agent_path in sorted(agents_dir.iterdir()):
         if agent_path.is_dir():
@@ -188,21 +190,21 @@ def list_agents(*, output_format: OutputFormat = "text") -> None:
             if agent_md.exists():
                 console.print(
                     f"  {bullet} [bold]{agent_name}[/bold]{default_label}",
-                    style=COLORS["primary"],
+                    style=theme.primary,
                 )
                 console.print(
                     f"    {escape_markup(str(agent_path))}",
-                    style=COLORS["dim"],
+                    style=theme.text_muted,
                 )
             else:
                 console.print(
                     f"  {bullet} [bold]{agent_name}[/bold]{default_label}"
                     " [dim](incomplete)[/dim]",
-                    style=COLORS["tool"],
+                    style=theme.tool,
                 )
                 console.print(
                     f"    {escape_markup(str(agent_path))}",
-                    style=COLORS["dim"],
+                    style=theme.text_muted,
                 )
 
     console.print()
@@ -230,8 +232,10 @@ def reset_agent(
 
         if not source_md.exists():
             console.print(
-                f"[bold red]Error:[/bold red] Source agent '{source_agent}' not found "
-                "or has no AGENTS.md"
+                f"[bold {theme.error}]Error:"
+                f"[/bold {theme.error}] "
+                f"Source agent '{source_agent}' "
+                "not found or has no AGENTS.md"
             )
             return
 
@@ -245,7 +249,7 @@ def reset_agent(
         shutil.rmtree(agent_dir)
         if output_format != "json":
             console.print(
-                f"Removed existing agent directory: {agent_dir}", style=COLORS["tool"]
+                f"Removed existing agent directory: {agent_dir}", style=theme.tool
             )
 
     agent_dir.mkdir(parents=True, exist_ok=True)
@@ -267,9 +271,9 @@ def reset_agent(
 
     console.print(
         f"{get_glyphs().checkmark} Agent '{agent_name}' reset to {action_desc}",
-        style=COLORS["primary"],
+        style=theme.primary,
     )
-    console.print(f"Location: {agent_dir}\n", style=COLORS["dim"])
+    console.print(f"Location: {agent_dir}\n", style=theme.text_muted)
 
 
 def get_system_prompt(

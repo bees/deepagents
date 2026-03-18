@@ -46,6 +46,7 @@ from deepagents_cli.config import (
     create_model,
     is_shell_command_allowed,
     settings,
+    theme,
 )
 from deepagents_cli.file_ops import FileOpTracker
 from deepagents_cli.hooks import dispatch_hook, dispatch_hook_fire_and_forget
@@ -218,8 +219,9 @@ def _process_interrupts(
                     interrupt_obj.value,
                 )
                 console.print(
-                    f"[yellow]Warning: Received malformed tool approval "
-                    f"request (interrupt {interrupt_obj.id}). Rejecting.[/yellow]"
+                    f"[{theme.warning}]Warning: Received malformed tool approval "
+                    f"request (interrupt {interrupt_obj.id}). "
+                    f"Rejecting.[/{theme.warning}]"
                 )
                 # Fail-closed: record a reject decision for malformed interrupts
 
@@ -406,7 +408,7 @@ def _make_hitl_decision(
             and an optional `message` key with a human-readable explanation.
     """
     for warning in _collect_action_request_warnings(action_request):
-        console.print(f"[yellow]Warning:[/yellow] {warning}")
+        console.print(f"[{theme.warning}]Warning:[/{theme.warning}] {warning}")
 
     action_name = action_request.get("name", "")
 
@@ -414,8 +416,8 @@ def _make_hitl_decision(
         if not settings.shell_allow_list:
             command = action_request.get("args", {}).get("command", "")
             console.print(
-                f"\n[red]Shell command rejected (no allow-list configured): "
-                f"{command}[/red]"
+                f"\n[{theme.error}]Shell command rejected (no allow-list configured): "
+                f"{command}[/{theme.error}]"
             )
             return {
                 "type": "reject",
@@ -433,9 +435,15 @@ def _make_hitl_decision(
             return {"type": "approve"}
 
         allowed_list_str = ", ".join(settings.shell_allow_list)
-        console.print(f"\n[red]Shell command rejected:[/red] {escape_markup(command)}")
         console.print(
-            f"[yellow]Allowed commands:[/yellow] {escape_markup(allowed_list_str)}"
+            f"\n[{theme.error}]Shell command rejected:"
+            f"[/{theme.error}] "
+            f"{escape_markup(command)}"
+        )
+        console.print(
+            f"[{theme.warning}]Allowed commands:"
+            f"[/{theme.warning}] "
+            f"{escape_markup(allowed_list_str)}"
         )
         return {
             "type": "reject",
@@ -619,7 +627,7 @@ async def _run_agent_loop(
                 style=Style(dim=True, link=thread_url_lookup.url),
             )
             console.print(link_text)
-        console.print("[green]✓ Task completed[/green]")
+        console.print(f"[{theme.success}]✓ Task completed[/{theme.success}]")
         print_usage_table(state.stats, wall_time, console)
 
     await dispatch_hook("task.complete", {"thread_id": thread_id})
@@ -748,7 +756,7 @@ async def run_non_interactive(
             profile_overrides=profile_override,
         )
     except ModelConfigError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
+        console.print(f"[bold {theme.error}]Error:[/bold {theme.error}] {e}")
         return 1
 
     result.apply_to_settings()
@@ -840,13 +848,15 @@ async def run_non_interactive(
                         if tool_count:
                             label = "MCP tool" if tool_count == 1 else "MCP tools"
                             console.print(
-                                f"[green]✓ Loaded {tool_count} {label}[/green]"
+                                f"[{theme.success}]✓ Loaded "
+                                f"{tool_count} {label}"
+                                f"[/{theme.success}]"
                             )
                 except Exception:
                     logger.warning("MCP metadata preload failed", exc_info=True)
 
             if not quiet:
-                console.print("[green]✓ Server ready[/green]")
+                console.print(f"[{theme.success}]✓ Server ready[/{theme.success}]")
 
             file_op_tracker = FileOpTracker(assistant_id=assistant_id, backend=None)
 
@@ -862,25 +872,29 @@ async def run_non_interactive(
             )
 
     except KeyboardInterrupt:
-        console.print("\n[yellow]Interrupted[/yellow]")
+        console.print(f"\n[{theme.warning}]Interrupted[/{theme.warning}]")
         return 130
     except HITLIterationLimitError as e:
-        console.print(f"\n[red]{escape_markup(str(e))}[/red]")
+        console.print(f"\n[{theme.error}]{escape_markup(str(e))}[/{theme.error}]")
         console.print(
-            "[yellow]Hint: The agent may be repeatedly attempting commands "
+            f"[{theme.warning}]Hint: The agent may be repeatedly attempting commands "
             "that are not in the allow-list. Consider expanding the "
-            "--shell-allow-list or adjusting the task.[/yellow]"
+            f"--shell-allow-list or adjusting the task.[/{theme.warning}]"
         )
         return 1
     except (ValueError, OSError) as e:
         logger.exception("Error during non-interactive execution")
-        console.print(f"\n[red]Error: {escape_markup(str(e))}[/red]")
+        console.print(
+            f"\n[{theme.error}]Error: "
+            f"{escape_markup(str(e))}"
+            f"[/{theme.error}]"
+        )
         return 1
     except Exception as e:
         logger.exception("Unexpected error during non-interactive execution")
         console.print(
-            f"\n[red]Unexpected error ({type(e).__name__}): "
-            f"{escape_markup(str(e))}[/red]"
+            f"\n[{theme.error}]Unexpected error ({type(e).__name__}): "
+            f"{escape_markup(str(e))}[/{theme.error}]"
         )
         return 1
     else:

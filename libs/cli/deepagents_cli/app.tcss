@@ -86,6 +86,7 @@ Screen {
 
 .approval-menu .approval-option-selected {
     background: $primary;
+    color: $text;
     text-style: bold;
 }
 
@@ -125,15 +126,15 @@ Screen {
 
 .diff-removed {
     height: auto;
-    color: #ff8787;
-    background: #4a2020;
+    color: $diff-removed-fg;
+    background: $diff-removed-bg;
     padding: 0 1;
 }
 
 .diff-added {
     height: auto;
-    color: #8ce99a;
-    background: #1e4620;
+    color: $diff-added-fg;
+    background: $diff-added-bg;
     padding: 0 1;
 }
 

@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 from rich.markup import escape as escape_markup
 
-from deepagents_cli.config import COLORS, Settings, console, get_glyphs
+from deepagents_cli.config import Settings, console, get_glyphs, theme
 from deepagents_cli.ui import (
     build_help_parent,
     show_skills_create_help,
@@ -181,11 +181,14 @@ def _list(
 
                 write_json("skills list", [])
                 return
-            console.print("[yellow]Not in a project directory.[/yellow]")
+            console.print(
+                f"[{theme.warning}]Not in a project "
+                f"directory.[/{theme.warning}]"
+            )
             console.print(
                 "[dim]Project skills require a .git directory "
                 "in the project root.[/dim]",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             return
 
@@ -205,16 +208,19 @@ def _list(
 
                 write_json("skills list", [])
                 return
-            console.print("[yellow]No project skills found.[/yellow]")
+            console.print(
+                f"[{theme.warning}]No project skills "
+                f"found.[/{theme.warning}]"
+            )
             console.print(
                 f"[dim]Project skills will be created in {project_skills_dir}/ "
                 "when you add them.[/dim]",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             console.print(
                 "\n[dim]Create a project skill:\n"
                 "  deepagents skills create my-skill --project[/dim]",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             return
 
@@ -231,7 +237,7 @@ def _list(
             write_json("skills list", [dict(s) for s in skills])
             return
 
-        console.print("\n[bold]Project Skills:[/bold]\n", style=COLORS["primary"])
+        console.print("\n[bold]Project Skills:[/bold]\n", style=theme.primary)
     else:
         # Load skills from all directories (including built-in)
         skills = list_skills(
@@ -250,7 +256,7 @@ def _list(
 
         if not skills:
             console.print()
-            console.print("[yellow]No skills found.[/yellow]")
+            console.print(f"[{theme.warning}]No skills found.[/{theme.warning}]")
             console.print()
             console.print(
                 "[dim]Skills are loaded from these directories "
@@ -260,16 +266,16 @@ def _list(
                 "  3. ~/.agents/skills/               user skills\n"
                 "  4. ~/.deepagents/<agent>/skills/   user skills (alias)\n"
                 "  5. <package>/built_in_skills/      built-in skills[/dim]",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             console.print(
                 "\n[dim]Create your first skill:\n"
                 "  deepagents skills create my-skill[/dim]",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             return
 
-        console.print("\n[bold]Available Skills:[/bold]\n", style=COLORS["primary"])
+        console.print("\n[bold]Available Skills:[/bold]\n", style=theme.primary)
 
     # Group skills by source
     user_skills = [s for s in skills if s["source"] == "user"]
@@ -278,20 +284,24 @@ def _list(
 
     # Show user skills
     if user_skills and not project:
-        console.print("[bold cyan]User Skills:[/bold cyan]", style=COLORS["primary"])
+        console.print(
+            f"[bold {theme.skill_user}]User Skills:"
+            f"[/bold {theme.skill_user}]",
+            style=theme.primary,
+        )
         bullet = get_glyphs().bullet
         for skill in user_skills:
             skill_path = Path(skill["path"])
             name = escape_markup(skill["name"])
-            console.print(f"  {bullet} [bold]{name}[/bold]", style=COLORS["primary"])
+            console.print(f"  {bullet} [bold]{name}[/bold]", style=theme.primary)
             console.print(
                 f"    {escape_markup(str(skill_path.parent))}/",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             console.print()
             console.print(
                 f"    {escape_markup(skill['description'])}",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             console.print()
 
@@ -300,21 +310,24 @@ def _list(
         if not project and user_skills:
             console.print()
         console.print(
-            "[bold green]Project Skills:[/bold green]", style=COLORS["primary"]
+            f"[bold {theme.skill_project}]"
+            f"Project Skills:"
+            f"[/bold {theme.skill_project}]",
+            style=theme.primary,
         )
         bullet = get_glyphs().bullet
         for skill in project_skills_list:
             skill_path = Path(skill["path"])
             name = escape_markup(skill["name"])
-            console.print(f"  {bullet} [bold]{name}[/bold]", style=COLORS["primary"])
+            console.print(f"  {bullet} [bold]{name}[/bold]", style=theme.primary)
             console.print(
                 f"    {escape_markup(str(skill_path.parent))}/",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             console.print()
             console.print(
                 f"    {escape_markup(skill['description'])}",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             console.print()
 
@@ -323,16 +336,19 @@ def _list(
         if user_skills or project_skills_list:
             console.print()
         console.print(
-            "[bold magenta]Built-in Skills:[/bold magenta]", style=COLORS["primary"]
+            f"[bold {theme.skill_builtin}]"
+            f"Built-in Skills:"
+            f"[/bold {theme.skill_builtin}]",
+            style=theme.primary,
         )
         bullet = get_glyphs().bullet
         for skill in built_in_skills_list:
             name = escape_markup(skill["name"])
-            console.print(f"  {bullet} [bold]{name}[/bold]", style=COLORS["primary"])
+            console.print(f"  {bullet} [bold]{name}[/bold]", style=theme.primary)
             console.print()
             console.print(
                 f"    {escape_markup(skill['description'])}",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             console.print()
 
@@ -428,12 +444,16 @@ def _create(
     # Validate skill name first (per Agent Skills spec)
     is_valid, error_msg = _validate_name(skill_name)
     if not is_valid:
-        console.print(f"[bold red]Error:[/bold red] Invalid skill name: {error_msg}")
+        console.print(
+            f"[bold {theme.error}]Error:"
+            f"[/bold {theme.error}] "
+            f"Invalid skill name: {error_msg}"
+        )
         console.print(
             "[dim]Per Agent Skills spec: names must be lowercase alphanumeric "
             "with hyphens only.\n"
             "Examples: web-research, code-review, data-analysis[/dim]",
-            style=COLORS["dim"],
+            style=theme.text_muted,
         )
         return
 
@@ -441,17 +461,23 @@ def _create(
     settings = Settings.from_environment()
     if project:
         if not settings.project_root:
-            console.print("[bold red]Error:[/bold red] Not in a project directory.")
+            console.print(
+                f"[bold {theme.error}]Error:"
+                f"[/bold {theme.error}] "
+                "Not in a project directory."
+            )
             console.print(
                 "[dim]Project skills require a .git directory "
                 "in the project root.[/dim]",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             return
         skills_dir = settings.ensure_project_skills_dir()
         if skills_dir is None:
             console.print(
-                "[bold red]Error:[/bold red] Could not create project skills directory."
+                f"[bold {theme.error}]Error:"
+                f"[/bold {theme.error}] Could not "
+                "create project skills directory."
             )
             return
     else:
@@ -462,12 +488,12 @@ def _create(
     # Validate the resolved path is within skills_dir
     is_valid_path, path_error = _validate_skill_path(skill_dir, skills_dir)
     if not is_valid_path:
-        console.print(f"[bold red]Error:[/bold red] {path_error}")
+        console.print(f"[bold {theme.error}]Error:[/bold {theme.error}] {path_error}")
         return
 
     if skill_dir.exists():
         console.print(
-            f"[bold red]Error:[/bold red] Skill '{skill_name}' "
+            f"[bold {theme.error}]Error:[/bold {theme.error}] Skill '{skill_name}' "
             f"already exists at {skill_dir}"
         )
         return
@@ -495,9 +521,9 @@ def _create(
     checkmark = get_glyphs().checkmark
     console.print(
         f"\n[bold]{checkmark} Skill '{skill_name}' created successfully![/bold]",
-        style=COLORS["primary"],
+        style=theme.primary,
     )
-    console.print(f"Location: {skill_dir}\n", style=COLORS["dim"])
+    console.print(f"Location: {skill_dir}\n", style=theme.text_muted)
     console.print(
         "[dim]Edit the SKILL.md file to customize:\n"
         "  1. Update the description in YAML frontmatter\n"
@@ -512,7 +538,7 @@ def _create(
         "\n"
         "   Copy an example:\n"
         "   cp -r examples/skills/web-research ~/.deepagents/agent/skills/\n",
-        style=COLORS["dim"],
+        style=theme.text_muted,
     )
 
 
@@ -546,7 +572,11 @@ def _info(
     # Load skills based on --project flag
     if project:
         if not project_skills_dir:
-            console.print("[bold red]Error:[/bold red] Not in a project directory.")
+            console.print(
+                f"[bold {theme.error}]Error:"
+                f"[/bold {theme.error}] "
+                "Not in a project directory."
+            )
             return
         skills = list_skills(
             user_skills_dir=None,
@@ -567,10 +597,14 @@ def _info(
     skill = next((s for s in skills if s["name"] == skill_name), None)
 
     if not skill:
-        console.print(f"[bold red]Error:[/bold red] Skill '{skill_name}' not found.")
-        console.print("\n[dim]Available skills:[/dim]", style=COLORS["dim"])
+        console.print(
+            f"[bold {theme.error}]Error:"
+            f"[/bold {theme.error}] "
+            f"Skill '{skill_name}' not found."
+        )
+        console.print("\n[dim]Available skills:[/dim]", style=theme.text_muted)
         for s in skills:
-            console.print(f"  - {s['name']}", style=COLORS["dim"])
+            console.print(f"  - {s['name']}", style=theme.text_muted)
         return
 
     if output_format == "json":
@@ -585,9 +619,9 @@ def _info(
 
     # Determine source label
     source_labels = {
-        "project": ("Project Skill", "green"),
-        "user": ("User Skill", "cyan"),
-        "built-in": ("Built-in Skill", "magenta"),
+        "project": ("Project Skill", theme.skill_project),
+        "user": ("User Skill", theme.skill_user),
+        "built-in": ("Built-in Skill", theme.skill_builtin),
     }
     source_label, source_color = source_labels.get(skill["source"], ("Skill", "dim"))
 
@@ -610,28 +644,30 @@ def _info(
 
     console.print(
         f"\n[bold]Skill: {escape_markup(skill['name'])}[/bold] "
-        f"[bold {source_color}]({source_label})[/bold {source_color}]\n",
-        style=COLORS["primary"],
+        f"[bold {source_color}]({source_label})"
+        f"[/bold {source_color}]\n",
+        style=theme.primary,
     )
     if shadowed_user_skill:
         console.print(
-            f"[yellow]Note: Overrides user skill '{escape_markup(skill_name)}' "
-            "of the same name[/yellow]\n"
+            f"[{theme.warning}]Note: Overrides user "
+            f"skill '{escape_markup(skill_name)}' "
+            f"of the same name[/{theme.warning}]\n"
         )
     console.print(
         f"[bold]Location:[/bold] {escape_markup(str(skill_path.parent))}/\n",
-        style=COLORS["dim"],
+        style=theme.text_muted,
     )
     console.print(
         f"[bold]Description:[/bold] {escape_markup(skill['description'])}\n",
-        style=COLORS["dim"],
+        style=theme.text_muted,
     )
 
     # Show optional metadata fields
     for label, value in _format_info_fields(skill):
         console.print(
             f"[bold]{label}:[/bold] {escape_markup(value)}\n",
-            style=COLORS["dim"],
+            style=theme.text_muted,
         )
 
     # List supporting files
@@ -639,14 +675,14 @@ def _info(
     supporting_files = [f for f in skill_dir.iterdir() if f.name != "SKILL.md"]
 
     if supporting_files:
-        console.print("[bold]Supporting Files:[/bold]", style=COLORS["dim"])
+        console.print("[bold]Supporting Files:[/bold]", style=theme.text_muted)
         for file in supporting_files:
-            console.print(f"  - {escape_markup(file.name)}", style=COLORS["dim"])
+            console.print(f"  - {escape_markup(file.name)}", style=theme.text_muted)
         console.print()
 
     # Show the full SKILL.md content
-    console.print("[bold]Full SKILL.md Content:[/bold]\n", style=COLORS["primary"])
-    console.print(skill_content, style=COLORS["dim"])
+    console.print("[bold]Full SKILL.md Content:[/bold]\n", style=theme.primary)
+    console.print(skill_content, style=theme.text_muted)
     console.print()
 
 
@@ -679,7 +715,11 @@ def _delete(
     # Validate skill name first (per Agent Skills spec)
     is_valid, error_msg = _validate_name(skill_name)
     if not is_valid:
-        console.print(f"[bold red]Error:[/bold red] Invalid skill name: {error_msg}")
+        console.print(
+            f"[bold {theme.error}]Error:"
+            f"[/bold {theme.error}] "
+            f"Invalid skill name: {error_msg}"
+        )
         return
 
     # Deferred: skills.load imports the deepagents SDK. This module is
@@ -696,7 +736,11 @@ def _delete(
     # Load skills based on --project flag
     if project:
         if not project_skills_dir:
-            console.print("[bold red]Error:[/bold red] Not in a project directory.")
+            console.print(
+                f"[bold {theme.error}]Error:"
+                f"[/bold {theme.error}] "
+                "Not in a project directory."
+            )
             return
         skills = list_skills(
             user_skills_dir=None,
@@ -716,11 +760,15 @@ def _delete(
     skill = next((s for s in skills if s["name"] == skill_name), None)
 
     if not skill:
-        console.print(f"[bold red]Error:[/bold red] Skill '{skill_name}' not found.")
-        console.print("\n[dim]Available skills:[/dim]", style=COLORS["dim"])
+        console.print(
+            f"[bold {theme.error}]Error:"
+            f"[/bold {theme.error}] "
+            f"Skill '{skill_name}' not found."
+        )
+        console.print("\n[dim]Available skills:[/dim]", style=theme.text_muted)
         for s in skills:
             source_tag = "[project]" if s["source"] == "project" else "[user]"
-            console.print(f"  - {s['name']} {source_tag}", style=COLORS["dim"])
+            console.print(f"  - {s['name']} {source_tag}", style=theme.text_muted)
         return
 
     skill_path = Path(skill["path"])
@@ -730,19 +778,25 @@ def _delete(
     base_dir = project_skills_dir if skill["source"] == "project" else user_skills_dir
     if not base_dir:
         console.print(
-            "[bold red]Error:[/bold red] Cannot determine base skills directory. "
+            f"[bold {theme.error}]Error:"
+            f"[/bold {theme.error}] "
+            "Cannot determine base skills directory. "
             "Refusing to delete."
         )
         return
     is_valid_path, path_error = _validate_skill_path(skill_dir, base_dir)
     if not is_valid_path:
-        console.print(f"[bold red]Error:[/bold red] {path_error}")
+        console.print(f"[bold {theme.error}]Error:[/bold {theme.error}] {path_error}")
         return
 
     # Display confirmation summary (text mode only)
     if output_format != "json":
         source_label = "Project Skill" if skill["source"] == "project" else "User Skill"
-        source_color = "green" if skill["source"] == "project" else "cyan"
+        source_color = (
+            theme.skill_project
+            if skill["source"] == "project"
+            else theme.skill_user
+        )
 
         # Count files for the confirmation summary (display-only; a permission
         # error in a subdirectory should not abort the entire delete flow).
@@ -754,27 +808,29 @@ def _delete(
         console.print(
             f"\n[bold]Skill:[/bold] {escape_markup(skill_name)}"
             f" [bold {source_color}]({source_label})[/bold {source_color}]",
-            style=COLORS["primary"],
+            style=theme.primary,
         )
         console.print(
             f"[bold]Location:[/bold] {escape_markup(str(skill_dir))}/",
-            style=COLORS["dim"],
+            style=theme.text_muted,
         )
         if file_count >= 0:
             console.print(
                 f"[bold]Files:[/bold] {file_count} file(s) will be deleted\n",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
         else:
             console.print(
                 "[bold]Files:[/bold] (unable to count files)\n",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
 
     # Confirmation (skip in JSON mode — no interactive prompt)
     if not force and output_format != "json":
         console.print(
-            "[yellow]Are you sure you want to delete this skill? (y/N)[/yellow] ",
+            f"[{theme.warning}]Are you sure you want "
+            f"to delete this skill? (y/N)"
+            f"[/{theme.warning}] ",
             end="",
         )
         try:
@@ -791,14 +847,16 @@ def _delete(
     # (the user may have paused at the confirmation prompt).
     if skill_dir.is_symlink():
         console.print(
-            "[bold red]Error:[/bold red] Skill directory is a symlink. "
+            f"[bold {theme.error}]Error:"
+            f"[/bold {theme.error}] "
+            "Skill directory is a symlink. "
             "Refusing to delete for safety."
         )
         raise SystemExit(1)
 
     is_valid_path, path_error = _validate_skill_path(skill_dir, base_dir)
     if not is_valid_path:
-        console.print(f"[bold red]Error:[/bold red] {path_error}")
+        console.print(f"[bold {theme.error}]Error:[/bold {theme.error}] {path_error}")
         raise SystemExit(1)
 
     # Delete the skill directory
@@ -806,8 +864,13 @@ def _delete(
         shutil.rmtree(skill_dir)
     except OSError as e:
         console.print(
-            f"[bold red]Error:[/bold red] Failed to fully delete skill: {e}\n"
-            f"[yellow]Warning:[/yellow] Some files may have been partially removed.\n"
+            f"[bold {theme.error}]Error:"
+            f"[/bold {theme.error}] "
+            f"Failed to fully delete skill: {e}\n"
+            f"[{theme.warning}]Warning:"
+            f"[/{theme.warning}] "
+            "Some files may have been partially "
+            "removed.\n"
             f"Please inspect: {skill_dir}/"
         )
         raise SystemExit(1) from e
@@ -828,7 +891,7 @@ def _delete(
     checkmark = get_glyphs().checkmark
     console.print(
         f"{checkmark} Skill '{skill_name}' deleted successfully!",
-        style=COLORS["primary"],
+        style=theme.primary,
     )
 
 
@@ -989,12 +1052,14 @@ def execute_skills_command(args: argparse.Namespace) -> None:
         is_valid, error_msg = _validate_name(args.agent)
         if not is_valid:
             console.print(
-                f"[bold red]Error:[/bold red] Invalid agent name: {error_msg}"
+                f"[bold {theme.error}]Error:"
+                f"[/bold {theme.error}] "
+                f"Invalid agent name: {error_msg}"
             )
             console.print(
                 "[dim]Agent names must only contain letters, numbers, "
                 "hyphens, and underscores.[/dim]",
-                style=COLORS["dim"],
+                style=theme.text_muted,
             )
             return
 

@@ -1119,7 +1119,7 @@ async def list_threads_command(
     from rich.markup import escape as escape_markup
     from rich.table import Table
 
-    from deepagents_cli.config import COLORS, console
+    from deepagents_cli.config import console, theme
 
     if not threads:
         filters = []
@@ -1129,10 +1129,12 @@ async def list_threads_command(
             filters.append(f"branch '{escape_markup(branch)}'")
         if filters:
             console.print(
-                f"[yellow]No threads found for {' and '.join(filters)}.[/yellow]"
+                f"[{theme.warning}]No threads found for "
+                f"{' and '.join(filters)}."
+                f"[/{theme.warning}]"
             )
         else:
-            console.print("[yellow]No threads found.[/yellow]")
+            console.print(f"[{theme.warning}]No threads found.[/{theme.warning}]")
         console.print("[dim]Start a conversation with: deepagents[/dim]")
         return
 
@@ -1147,7 +1149,7 @@ async def list_threads_command(
     title = f"Recent Threads{title_filter} (last {limit}, by {sort_label})"
 
     table = Table(
-        title=title, show_header=True, header_style=f"bold {COLORS['primary']}"
+        title=title, show_header=True, header_style=f"bold {theme.primary}"
     )
     table.add_column("Thread ID", style="bold")
     table.add_column("Agent")
@@ -1213,10 +1215,16 @@ async def delete_thread_command(
 
     from rich.markup import escape as escape_markup
 
-    from deepagents_cli.config import console
+    from deepagents_cli.config import console, theme
 
     escaped_id = escape_markup(thread_id)
     if deleted:
-        console.print(f"[green]Thread '{escaped_id}' deleted.[/green]")
+        console.print(
+            f"[{theme.success}]Thread '{escaped_id}'"
+            f" deleted.[/{theme.success}]"
+        )
     else:
-        console.print(f"[red]Thread '{escaped_id}' not found.[/red]")
+        console.print(
+            f"[{theme.error}]Thread '{escaped_id}'"
+            f" not found.[/{theme.error}]"
+        )

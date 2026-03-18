@@ -14,7 +14,7 @@ from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Static
 
-from deepagents_cli.config import COLORS, get_glyphs, settings
+from deepagents_cli.config import get_glyphs, settings, theme
 
 logger = logging.getLogger(__name__)
 
@@ -106,12 +106,12 @@ class StatusBar(Horizontal):
     }
 
     StatusBar .status-auto-approve.on {
-        background: #10b981;
+        background: __AUTO_ON__;
         color: black;
     }
 
     StatusBar .status-auto-approve.off {
-        background: #f59e0b;
+        background: __AUTO_OFF__;
         color: black;
     }
 
@@ -156,8 +156,12 @@ class StatusBar(Horizontal):
         color: $text-muted;
         text-align: right;
     }
-    """.replace("__MODE_SHELL__", COLORS["mode_shell"]).replace(
-        "__MODE_CMD__", COLORS["mode_command"]
+    """.replace("__MODE_SHELL__", theme.mode_shell).replace(
+        "__MODE_CMD__", theme.mode_command
+    ).replace(
+        "__AUTO_ON__", theme.auto_approve_on
+    ).replace(
+        "__AUTO_OFF__", theme.auto_approve_off
     )
 
     mode: reactive[str] = reactive("normal", init=False)

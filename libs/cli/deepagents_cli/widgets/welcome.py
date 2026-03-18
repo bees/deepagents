@@ -23,6 +23,7 @@ from deepagents_cli.config import (
     get_glyphs,
     get_langsmith_project_name,
     newline_shortcut,
+    theme,
 )
 from deepagents_cli.widgets._links import open_style_link
 
@@ -173,7 +174,7 @@ class WelcomeBanner(Static):
         if self._project_name:
             parts.extend(
                 [
-                    (f"{get_glyphs().checkmark} ", "green"),
+                    (f"{get_glyphs().checkmark} ", theme.success),
                     "LangSmith tracing: ",
                 ]
             )
@@ -182,13 +183,13 @@ class WelcomeBanner(Static):
                     (
                         f"'{self._project_name}'",
                         TStyle(
-                            foreground=TColor.parse("cyan"),
+                            foreground=TColor.parse(theme.link),
                             link=f"{project_url}?utm_source=deepagents-cli",
                         ),
                     )
                 )
             else:
-                parts.append((f"'{self._project_name}'", "cyan"))
+                parts.append((f"'{self._project_name}'", theme.link))
             parts.append("\n")
 
         if self._cli_thread_id:
@@ -208,7 +209,7 @@ class WelcomeBanner(Static):
                 parts.append((f"Thread: {self._cli_thread_id}\n", "dim"))
 
         if self._mcp_tool_count > 0:
-            parts.append((f"{get_glyphs().checkmark} ", "green"))
+            parts.append((f"{get_glyphs().checkmark} ", theme.success))
             label = "MCP tool" if self._mcp_tool_count == 1 else "MCP tools"
             parts.append(f"Loaded {self._mcp_tool_count} {label}\n")
 
@@ -231,9 +232,9 @@ def build_failure_footer(error: str) -> Content:
         Content with a persistent failure message.
     """
     return Content.assemble(
-        ("\nServer failed to start: ", "bold red"),
-        (error, "red"),
-        ("\n", "red"),
+        ("\nServer failed to start: ", f"bold {theme.error}"),
+        (error, theme.error),
+        ("\n", theme.error),
     )
 
 

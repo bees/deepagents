@@ -16,10 +16,16 @@ from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import Input, Static
 
+from deepagents_cli.config import (
+    CharsetMode,
+    Glyphs,
+    _detect_charset_mode,
+    get_glyphs,
+    theme,
+)
+
 if TYPE_CHECKING:
     from textual.app import ComposeResult
-
-from deepagents_cli.config import CharsetMode, Glyphs, _detect_charset_mode, get_glyphs
 from deepagents_cli.model_config import (
     ModelConfig,
     ModelProfileEntry,
@@ -300,7 +306,7 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         """Set up the screen on mount."""
         if _detect_charset_mode() == CharsetMode.ASCII:
             container = self.query_one(Vertical)
-            container.styles.border = ("ascii", "green")
+            container.styles.border = ("ascii", theme.border_success)
 
         await self._update_display()
         self._update_footer()
@@ -528,19 +534,19 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         glyphs = get_glyphs()
         cursor = f"{glyphs.cursor} " if selected else "  "
         if not has_creds:
-            spec = Content.styled(model_spec, "yellow")
+            spec = Content.styled(model_spec, theme.warning)
         elif is_default:
-            spec = Content.styled(model_spec, "cyan")
+            spec = Content.styled(model_spec, theme.link)
         else:
             spec = Content(model_spec)
         suffix = Content.styled(" (current)", "dim") if current else Content("")
         default_suffix = (
-            Content.styled(" (default)", "cyan") if is_default else Content("")
+            Content.styled(" (default)", theme.link) if is_default else Content("")
         )
         if status == "deprecated":
-            status_suffix = Content.styled(" (deprecated)", "red")
+            status_suffix = Content.styled(" (deprecated)", theme.error)
         elif status:
-            status_suffix = Content.styled(f" ({status})", "yellow")
+            status_suffix = Content.styled(f" ({status})", theme.warning)
         else:
             status_suffix = Content("")
         return Content.assemble(cursor, spec, suffix, default_suffix, status_suffix)
@@ -569,7 +575,7 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
 
         def _mark(key: str, text: str) -> Content:
             if key in overridden:
-                return Content.styled(f"*{text}", "yellow")
+                return Content.styled(f"*{text}", theme.warning)
             return Content(text)
 
         def _format_token(key: str, suffix: str) -> Content | None:
@@ -597,12 +603,15 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
             for key, label in keys:
                 if key in profile:
                     base = (
-                        Content.styled(label, "green")
+                        Content.styled(label, theme.success)
                         if profile[key]
                         else Content.styled(label, "dim")
                     )
                     if key in overridden:
-                        base = Content.assemble(Content.styled("*", "yellow"), base)
+                        base = Content.assemble(
+                            Content.styled("*", theme.warning),
+                            base,
+                        )
                     parts.append(base)
             return parts
 
@@ -649,7 +658,10 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         displayed_keys = {k for k, _ in token_keys + modality_keys + capability_keys}
         has_visible_override = bool(overridden & displayed_keys)
         line4 = (
-            Content.from_markup("[dim][yellow]*[/yellow] = override[/dim]")
+            Content.from_markup(
+                f"[dim][{theme.warning}]*"
+                f"[/{theme.warning}] = override[/dim]"
+            )
             if has_visible_override
             else Content("")
         )
@@ -845,7 +857,7 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
                 self.set_timer(3.0, self._restore_help_text)
             else:
                 help_widget.update(
-                    Content.styled("Failed to clear default", "bold red")
+                    Content.styled("Failed to clear default", f"bold {theme.error}")
                 )
                 self.set_timer(3.0, self._restore_help_text)
         elif await asyncio.to_thread(save_default_model, model_spec):
@@ -858,7 +870,12 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
             )
             self.set_timer(3.0, self._restore_help_text)
         else:
-            help_widget.update(Content.styled("Failed to save default", "bold red"))
+            help_widget.update(
+                Content.styled(
+                    "Failed to save default",
+                    f"bold {theme.error}",
+                )
+            )
             self.set_timer(3.0, self._restore_help_text)
 
     def _restore_help_text(self) -> None:

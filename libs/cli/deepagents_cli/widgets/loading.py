@@ -9,7 +9,7 @@ from textual.containers import Horizontal
 from textual.content import Content
 from textual.widgets import Static
 
-from deepagents_cli.config import get_glyphs
+from deepagents_cli.config import get_glyphs, theme
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -130,7 +130,7 @@ class LoadingWidget(Static):
 
         if self._spinner_widget:
             frame = self._spinner.next_frame()
-            self._spinner_widget.update(Content.styled(frame, "#FFD800"))
+            self._spinner_widget.update(Content.styled(frame, theme.warning))
 
         if self._hint_widget and self._start_time is not None:
             elapsed = int(time() - self._start_time)

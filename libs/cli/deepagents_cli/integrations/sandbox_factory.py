@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from rich.markup import escape as escape_markup
 
-from deepagents_cli.config import console, get_glyphs
+from deepagents_cli.config import console, get_glyphs, theme
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -52,12 +52,20 @@ def _run_sandbox_setup(backend: SandboxBackendProtocol, setup_script_path: str) 
     result = backend.execute(f"bash -c {shlex.quote(expanded_script)}")
 
     if result.exit_code != 0:
-        console.print(f"[red]Setup script failed (exit {result.exit_code}):[/red]")
+        console.print(
+            f"[{theme.error}]Setup script failed "
+            f"(exit {result.exit_code}):"
+            f"[/{theme.error}]"
+        )
         console.print(f"[dim]{escape_markup(result.output)}[/dim]")
         msg = "Setup failed - aborting"
         raise RuntimeError(msg)
 
-    console.print(f"[green]{get_glyphs().checkmark} Setup complete[/green]")
+    glyph = get_glyphs().checkmark
+    console.print(
+        f"[{theme.success}]{glyph} Setup complete"
+        f"[/{theme.success}]"
+    )
 
 
 _PROVIDER_TO_WORKING_DIR = {
@@ -94,12 +102,12 @@ def create_sandbox(
     should_cleanup = sandbox_id is None
 
     # Create or connect to sandbox
-    console.print(f"[yellow]Starting {provider} sandbox...[/yellow]")
+    console.print(f"[{theme.warning}]Starting {provider} sandbox...[/{theme.warning}]")
     backend = provider_obj.get_or_create(sandbox_id=sandbox_id)
     glyphs = get_glyphs()
     console.print(
-        f"[green]{glyphs.checkmark} {provider.capitalize()} sandbox ready: "
-        f"{backend.id}[/green]"
+        f"[{theme.success}]{glyphs.checkmark} {provider.capitalize()} sandbox ready: "
+        f"{backend.id}[/{theme.success}]"
     )
 
     # Run setup script if provided
@@ -123,8 +131,8 @@ def create_sandbox(
             except Exception as e:  # noqa: BLE001  # Cleanup errors should not mask the original sandbox failure
                 warning = get_glyphs().warning
                 console.print(
-                    f"[yellow]{warning} Cleanup failed for {provider} sandbox "
-                    f"{backend.id}: {e}[/yellow]"
+                    f"[{theme.warning}]{warning} Cleanup failed for {provider} sandbox "
+                    f"{backend.id}: {e}[/{theme.warning}]"
                 )
 
 

@@ -27,6 +27,7 @@ from deepagents_cli.config import (
     CharsetMode,
     _detect_charset_mode,
     get_glyphs,
+    theme,
 )
 
 OTHER_CHOICE_LABEL = "Other (type your answer)"
@@ -111,7 +112,7 @@ class AskUserMenu(Container):
 
     async def on_mount(self) -> None:  # noqa: D102
         if _detect_charset_mode() == CharsetMode.ASCII:
-            self.styles.border = ("ascii", "green")
+            self.styles.border = ("ascii", theme.success)
         self._set_active_question(0)
 
     def focus_active(self) -> None:

@@ -194,6 +194,7 @@ def parse_args() -> argparse.Namespace:
     """
     from deepagents_cli.output import add_json_output_arg
     from deepagents_cli.skills import setup_skills_parser
+    from deepagents_cli.theme_commands import setup_theme_parser
     from deepagents_cli.ui import (
         build_help_parent,
         show_help,
@@ -358,6 +359,12 @@ def parse_args() -> argparse.Namespace:
     )
     add_json_output_arg(threads_delete)
     threads_delete.add_argument("thread_id", help="Thread ID to delete")
+
+    setup_theme_parser(
+        subparsers,
+        make_help_action=_make_help_action,
+        add_output_args=add_json_output_arg,
+    )
 
     # Default interactive mode — argument order here determines the
     # usage line printed by argparse; keep in sync with ui.show_help().
@@ -600,7 +607,7 @@ async def run_textual_cli_async(
     from rich.text import Text
 
     from deepagents_cli.app import run_textual_app
-    from deepagents_cli.config import console, create_model
+    from deepagents_cli.config import console, create_model, theme
     from deepagents_cli.model_config import ModelConfigError, save_recent_model
 
     try:
@@ -612,7 +619,7 @@ async def run_textual_cli_async(
     except ModelConfigError as e:
         from deepagents_cli.app import AppResult
 
-        console.print(f"[bold red]Error:[/bold red] {e}")
+        console.print(f"[bold {theme.error}]Error:[/bold {theme.error}] {e}")
         return AppResult(return_code=1, thread_id=None)
 
     result.apply_to_settings()
@@ -660,7 +667,7 @@ async def run_textual_cli_async(
         )
     except Exception as e:
         logger.debug("App error", exc_info=True)
-        error_text = Text("Application error: ", style="red")
+        error_text = Text("Application error: ", style=theme.error)
         error_text.append(str(e))
         console.print(error_text)
         if logger.isEnabledFor(logging.DEBUG):
@@ -822,7 +829,7 @@ def apply_stdin_pipe(args: argparse.Namespace) -> None:
     Args:
         args: The parsed argument namespace (mutated in place).
     """
-    from deepagents_cli.config import console
+    from deepagents_cli.config import console, theme
 
     if sys.stdin is None:
         return
@@ -841,11 +848,11 @@ def apply_stdin_pipe(args: argparse.Namespace) -> None:
         stdin_text = sys.stdin.read(max_stdin_bytes + 1)
     except UnicodeDecodeError:
         msg = "Could not read piped input — ensure the input is valid text"
-        console.print(f"[bold red]Error:[/bold red] {msg}")
+        console.print(f"[bold {theme.error}]Error:[/bold {theme.error}] {msg}")
         sys.exit(1)
     except (OSError, ValueError) as exc:
         msg = f"Failed to read piped input: {exc}"
-        console.print(f"[bold red]Error:[/bold red] {msg}")
+        console.print(f"[bold {theme.error}]Error:[/bold {theme.error}] {msg}")
         sys.exit(1)
 
     if len(stdin_text) > max_stdin_bytes:
@@ -853,7 +860,7 @@ def apply_stdin_pipe(args: argparse.Namespace) -> None:
             f"Piped input exceeds {max_stdin_bytes // (1024 * 1024)} MiB limit. "
             "Consider writing the content to a file and referencing it instead."
         )
-        console.print(f"[bold red]Error:[/bold red] {msg}")
+        console.print(f"[bold {theme.error}]Error:[/bold {theme.error}] {msg}")
         sys.exit(1)
 
     stdin_text = stdin_text.strip()
@@ -886,7 +893,7 @@ def apply_stdin_pipe(args: argparse.Namespace) -> None:
         sys.stdin = open(0, encoding="utf-8", closefd=False)  # noqa: SIM115  # fd 0 requires open() for TTY restoration
     except OSError:
         console.print(
-            "[yellow]Warning:[/yellow] TTY restoration failed. "
+            f"[{theme.warning}]Warning:[/{theme.warning}] TTY restoration failed. "
             "Interactive mode (-m) may not work correctly."
         )
         logger.warning(
@@ -981,10 +988,14 @@ def _check_mcp_project_trust(*, trust_flag: bool = False) -> bool | None:
     # Interactive prompt
     from rich.console import Console as _Console
 
+    from deepagents_cli.config import theme
+
     prompt_console = _Console(stderr=True)
     prompt_console.print()
     prompt_console.print(
-        "[bold yellow]Project MCP servers require approval:[/bold yellow]"
+        f"[bold {theme.warning}]"
+        f"Project MCP servers require approval:"
+        f"[/bold {theme.warning}]"
     )
     for name, cmd, args in all_stdio:
         args_str = " ".join(args) if args else ""
@@ -1036,7 +1047,7 @@ def cli_main() -> None:
     if "--acp" not in sys.argv[1:]:
         check_cli_dependencies()
 
-    from deepagents_cli.config import console, settings
+    from deepagents_cli.config import console, settings, theme
 
     try:
         args = parse_args()
@@ -1048,12 +1059,14 @@ def cli_main() -> None:
                 model_params = json.loads(raw_kwargs)
             except json.JSONDecodeError as e:
                 console.print(
-                    f"[bold red]Error:[/bold red] --model-params is not valid JSON: {e}"
+                    f"[bold {theme.error}]Error:[/bold {theme.error}] "
+                    f"--model-params is not valid JSON: {e}"
                 )
                 sys.exit(1)
             if not isinstance(model_params, dict):
                 console.print(
-                    "[bold red]Error:[/bold red] --model-params must be a JSON object"
+                    f"[bold {theme.error}]Error:[/bold {theme.error}] "
+                    f"--model-params must be a JSON object"
                 )
                 sys.exit(1)
 
@@ -1064,13 +1077,13 @@ def cli_main() -> None:
                 profile_override = json.loads(raw_profile)
             except json.JSONDecodeError as e:
                 console.print(
-                    "[bold red]Error:[/bold red] "
+                    f"[bold {theme.error}]Error:[/bold {theme.error}] "
                     f"--profile-override is not valid JSON: {e}"
                 )
                 sys.exit(1)
             if not isinstance(profile_override, dict):
                 console.print(
-                    "[bold red]Error:[/bold red] "
+                    f"[bold {theme.error}]Error:[/bold {theme.error}] "
                     "--profile-override must be a JSON object"
                 )
                 sys.exit(1)
@@ -1121,8 +1134,8 @@ def cli_main() -> None:
             from rich.console import Console as _Console
 
             _Console(stderr=True).print(
-                "[bold red]Error:[/bold red] --no-mcp and --mcp-config "
-                "are mutually exclusive"
+                f"[bold {theme.error}]Error:[/bold {theme.error}] "
+                f"--no-mcp and --mcp-config are mutually exclusive"
             )
             sys.exit(2)
 
@@ -1139,7 +1152,7 @@ def cli_main() -> None:
                 flags.append("--no-stream")
             flag = " and ".join(flags)
             _Console(stderr=True).print(
-                f"[bold red]Error:[/bold red] {flag} requires "
+                f"[bold {theme.error}]Error:[/bold {theme.error}] {flag} requires "
                 "--non-interactive (-n) or piped stdin"
             )
             sys.exit(2)
@@ -1152,8 +1165,9 @@ def cli_main() -> None:
                 console.print("Default model cleared.")
             else:
                 console.print(
-                    "[bold red]Error:[/bold red] Could not clear default model. "
-                    "Check permissions for ~/.deepagents/"
+                    f"[bold {theme.error}]Error:[/bold {theme.error}] "
+                    f"Could not clear default model. "
+                    f"Check permissions for ~/.deepagents/"
                 )
                 sys.exit(1)
             sys.exit(0)
@@ -1187,8 +1201,9 @@ def cli_main() -> None:
                 console.print(f"Default model set to {model_spec}")
             else:
                 console.print(
-                    "[bold red]Error:[/bold red] Could not save default model. "
-                    "Check permissions for ~/.deepagents/"
+                    f"[bold {theme.error}]Error:[/bold {theme.error}] "
+                    f"Could not save default model. "
+                    f"Check permissions for ~/.deepagents/"
                 )
                 sys.exit(1)
             sys.exit(0)
@@ -1239,6 +1254,10 @@ def cli_main() -> None:
             else:
                 # No subcommand provided, show threads help screen
                 show_threads_help()
+        elif args.command == "theme":
+            from deepagents_cli.theme_commands import execute_theme_command
+
+            execute_theme_command(args)
         elif args.non_interactive_message:
             # Check for optional tools before running agent (stderr so
             # --quiet piped output stays clean)
@@ -1253,8 +1272,10 @@ def cli_main() -> None:
                 try:
                     warn_console = _Console(stderr=True)
                     for tool in check_optional_tools():
+                        msg = format_tool_warning_cli(tool)
                         warn_console.print(
-                            f"[yellow]Warning:[/yellow] {format_tool_warning_cli(tool)}"
+                            f"[{theme.warning}]Warning:"
+                            f"[/{theme.warning}] {msg}"
                         )
                 except Exception:
                     logger.debug("Failed to check for optional tools", exc_info=True)
@@ -1309,11 +1330,14 @@ def cli_main() -> None:
                         args.agent = agent_name
                 else:
                     if agent_filter:
-                        msg = Text("No previous thread for '", style="yellow")
+                        msg = Text("No previous thread for '", style=theme.warning)
                         msg.append(args.agent)
-                        msg.append("', starting new.", style="yellow")
+                        msg.append("', starting new.", style=theme.warning)
                     else:
-                        msg = Text("No previous threads, starting new.", style="yellow")
+                        msg = Text(
+                            "No previous threads, starting new.",
+                            style=theme.warning,
+                        )
                     console.print(msg)
 
             elif args.resume_thread:
@@ -1325,19 +1349,22 @@ def cli_main() -> None:
                         if agent_name:
                             args.agent = agent_name
                 else:
-                    error_msg = Text("Thread '", style="red")
+                    error_msg = Text("Thread '", style=theme.error)
                     error_msg.append(args.resume_thread)
-                    error_msg.append("' not found.", style="red")
+                    error_msg.append("' not found.", style=theme.error)
                     console.print(error_msg)
 
                     # Check for similar thread IDs
                     similar = asyncio.run(find_similar_threads(args.resume_thread))
                     if similar:
                         console.print()
-                        console.print("[yellow]Did you mean?[/yellow]")
+                        console.print(
+                            f"[{theme.warning}]Did you mean?"
+                            f"[/{theme.warning}]"
+                        )
                         for tid in similar:
-                            hint = Text("  deepagents -r ", style="cyan")
-                            hint.append(str(tid), style="cyan")
+                            hint = Text("  deepagents -r ", style=theme.link)
+                            hint.append(str(tid), style=theme.link)
                             console.print(hint)
                         console.print()
 
@@ -1386,7 +1413,7 @@ def cli_main() -> None:
                 thread_id = result.thread_id or thread_id
                 _print_session_stats(result.session_stats, console)
             except Exception as e:  # noqa: BLE001  # Top-level error handler for the application
-                error_msg = Text("\nApplication error: ", style="red")
+                error_msg = Text("\nApplication error: ", style=theme.error)
                 error_msg.append(str(e))
                 console.print(error_msg)
                 console.print(Text(traceback.format_exc(), style="dim"))
@@ -1414,12 +1441,12 @@ def cli_main() -> None:
             if thread_id and return_code == 0 and asyncio.run(thread_exists(thread_id)):
                 console.print()
                 console.print("[dim]Resume this thread with:[/dim]")
-                hint = Text("deepagents -r ", style="cyan")
-                hint.append(str(thread_id), style="cyan")
+                hint = Text("deepagents -r ", style=theme.link)
+                hint.append(str(thread_id), style=theme.link)
                 console.print(hint)
     except KeyboardInterrupt:
         # Clean exit on Ctrl+C - suppress ugly traceback
-        console.print("\n\n[yellow]Interrupted[/yellow]")
+        console.print(f"\n\n[{theme.warning}]Interrupted[/{theme.warning}]")
         sys.exit(0)
 
 

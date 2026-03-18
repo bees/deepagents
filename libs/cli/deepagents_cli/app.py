@@ -40,6 +40,7 @@ from deepagents_cli.config import (
     is_shell_command_allowed,
     newline_shortcut,
     settings,
+    theme,
 )
 from deepagents_cli.configurable_model import CLIContext
 from deepagents_cli.hooks import dispatch_hook
@@ -679,6 +680,27 @@ class DeepAgentsApp(App):
 
         return self._agent if isinstance(self._agent, RemoteAgent) else None
 
+    def get_css_variables(self) -> dict[str, str]:
+        """Inject theme colors as Textual CSS variables.
+
+        Returns:
+            Mapping of CSS variable names to color values from the active theme.
+        """
+        variables = super().get_css_variables()
+        variables.update({
+            "diff-added-fg": theme.diff_added_fg,
+            "diff-added-bg": theme.diff_added_bg,
+            "diff-removed-fg": theme.diff_removed_fg,
+            "diff-removed-bg": theme.diff_removed_bg,
+        })
+        return variables
+
+    def _register_deepagents_theme(self) -> None:
+        """Register and activate a Textual theme from the deepagents theme."""
+        textual_theme = theme.to_textual_theme()
+        self.register_theme(textual_theme)
+        self.theme = "deepagents"
+
     def compose(self) -> ComposeResult:
         """Compose the application layout.
 
@@ -707,6 +729,8 @@ class DeepAgentsApp(App):
 
     async def on_mount(self) -> None:
         """Initialize components after mount."""
+        self._register_deepagents_theme()
+
         chat = self.query_one("#chat", VerticalScroll)
         chat.anchor()
         if _detect_charset_mode() == CharsetMode.ASCII:

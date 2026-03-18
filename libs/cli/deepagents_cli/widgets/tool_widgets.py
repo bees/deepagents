@@ -8,6 +8,8 @@ from textual.containers import Vertical
 from textual.content import Content
 from textual.widgets import Markdown, Static
 
+from deepagents_cli.config import theme
+
 if TYPE_CHECKING:
     from textual.app import ComposeResult
 
@@ -111,7 +113,9 @@ class EditFileApprovalWidget(ToolApprovalWidget):
         yield Static(
             Content.assemble(
                 Content.from_markup(
-                    "[bold cyan]File:[/bold cyan] $path  ", path=file_path
+                    f"[bold {theme.link}]File:"
+                    f"[/bold {theme.link}] $path  ",
+                    path=file_path,
                 ),
                 stats_str,
             )
@@ -162,11 +166,11 @@ class EditFileApprovalWidget(ToolApprovalWidget):
         if additions:
             if parts:
                 parts.append(" ")
-            parts.append((f"+{additions}", "green"))
+            parts.append((f"+{additions}", theme.success))
         if deletions:
             if parts:
                 parts.append(" ")
-            parts.append((f"-{deletions}", "red"))
+            parts.append((f"-{deletions}", theme.error))
         return Content.assemble(*parts) if parts else Content("")
 
     def _render_diff_lines_only(self, diff_lines: list[str]) -> ComposeResult:
@@ -201,12 +205,12 @@ class EditFileApprovalWidget(ToolApprovalWidget):
             Static widgets showing removed and added content with styling.
         """
         if old_string:
-            yield Static(Content.styled("Removing:", "bold red"))
+            yield Static(Content.styled("Removing:", f"bold {theme.error}"))
             yield from self._render_string_lines(old_string, is_addition=False)
             yield Static("")
 
         if new_string:
-            yield Static(Content.styled("Adding:", "bold green"))
+            yield Static(Content.styled("Adding:", f"bold {theme.success}"))
             yield from self._render_string_lines(new_string, is_addition=True)
 
     @staticmethod
@@ -221,17 +225,33 @@ class EditFileApprovalWidget(ToolApprovalWidget):
         if line.startswith("-"):
             return Static(
                 Content.from_markup(
-                    "[on #4a2020][#ff8787]- $text[/#ff8787][/on #4a2020]", text=raw
+                    f"[on {theme.diff_removed_bg}]"
+                    f"[{theme.diff_removed_fg}]"
+                    f"- $text"
+                    f"[/{theme.diff_removed_fg}]"
+                    f"[/on {theme.diff_removed_bg}]",
+                    text=raw,
                 )
             )
         if line.startswith("+"):
             return Static(
                 Content.from_markup(
-                    "[on #1e4620][#8ce99a]+ $text[/#8ce99a][/on #1e4620]", text=raw
+                    f"[on {theme.diff_added_bg}]"
+                    f"[{theme.diff_added_fg}]"
+                    f"+ $text"
+                    f"[/{theme.diff_added_fg}]"
+                    f"[/on {theme.diff_added_bg}]",
+                    text=raw,
                 )
             )
         if line.startswith(" "):
-            return Static(Content.from_markup("[#aaaaaa]  $text[/#aaaaaa]", text=raw))
+            return Static(
+                Content.from_markup(
+                    f"[{theme.text_muted}]  $text"
+                    f"[/{theme.text_muted}]",
+                    text=raw,
+                )
+            )
         if line.strip():
             return Static(line, markup=False)
         return None
@@ -244,10 +264,24 @@ class EditFileApprovalWidget(ToolApprovalWidget):
             Static widgets for each line with addition or deletion styling.
         """
         lines = text.split("\n")
-        style = "[on #1e4620][#8ce99a]+" if is_addition else "[on #4a2020][#ff8787]-"
-        end_style = (
-            "[/#8ce99a][/on #1e4620]" if is_addition else "[/#ff8787][/on #4a2020]"
-        )
+        if is_addition:
+            style = (
+                f"[on {theme.diff_added_bg}]"
+                f"[{theme.diff_added_fg}]+"
+            )
+            end_style = (
+                f"[/{theme.diff_added_fg}]"
+                f"[/on {theme.diff_added_bg}]"
+            )
+        else:
+            style = (
+                f"[on {theme.diff_removed_bg}]"
+                f"[{theme.diff_removed_fg}]-"
+            )
+            end_style = (
+                f"[/{theme.diff_removed_fg}]"
+                f"[/on {theme.diff_removed_bg}]"
+            )
 
         for line in lines[:_MAX_PREVIEW_LINES]:
             yield Static(Content.from_markup(f"{style} $text{end_style}", text=line))

@@ -9,7 +9,7 @@ from textual.containers import Vertical
 from textual.content import Content
 from textual.widgets import Static
 
-from deepagents_cli.config import CharsetMode, _detect_charset_mode, get_glyphs
+from deepagents_cli.config import CharsetMode, _detect_charset_mode, get_glyphs, theme
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -51,11 +51,11 @@ def format_diff_textual(diff: str, max_lines: int | None = 100) -> Content:
     # Add stats header
     stats_parts: list[str | tuple[str, str] | Content] = []
     if additions:
-        stats_parts.append((f"+{additions}", "green"))
+        stats_parts.append((f"+{additions}", theme.success))
     if deletions:
         if stats_parts:
             stats_parts.append(" ")
-        stats_parts.append((f"-{deletions}", "red"))
+        stats_parts.append((f"-{deletions}", theme.error))
     if stats_parts:
         formatted.extend([Content.assemble(*stats_parts), ""])  # Blank line after stats
 
@@ -85,10 +85,10 @@ def format_diff_textual(diff: str, max_lines: int | None = 100) -> Content:
             # Deletion - red gutter bar, subtle red background
             formatted.append(
                 Content.assemble(
-                    (f"{glyphs.gutter_bar}", "red bold"),
+                    (f"{glyphs.gutter_bar}", f"{theme.error} bold"),
                     (f"{old_num:>{width}}", "dim"),
                     " ",
-                    Content.styled(content, "on #2d1515"),
+                    Content.styled(content, f"on {theme.diff_removed_bg}"),
                 )
             )
             old_num += 1
@@ -97,10 +97,10 @@ def format_diff_textual(diff: str, max_lines: int | None = 100) -> Content:
             # Addition - green gutter bar, subtle green background
             formatted.append(
                 Content.assemble(
-                    (f"{glyphs.gutter_bar}", "green bold"),
+                    (f"{glyphs.gutter_bar}", f"{theme.success} bold"),
                     (f"{new_num:>{width}}", "dim"),
                     " ",
-                    Content.styled(content, "on #152d15"),
+                    Content.styled(content, f"on {theme.diff_added_bg}"),
                 )
             )
             new_num += 1

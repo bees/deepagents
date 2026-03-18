@@ -22,6 +22,7 @@ from deepagents_cli.config import (
     CharsetMode,
     _detect_charset_mode,
     get_glyphs,
+    theme,
 )
 from deepagents_cli.input import EMAIL_PREFIX_PATTERN, INPUT_HIGHLIGHT_PATTERN
 from deepagents_cli.tool_display import format_tool_display
@@ -142,14 +143,14 @@ _TOOLS_WITH_HEADER_INFO: set[str] = {
 class UserMessage(_TimestampClickMixin, Static):
     """Widget displaying a user message."""
 
-    DEFAULT_CSS = """
-    UserMessage {
+    DEFAULT_CSS = f"""
+    UserMessage {{
         height: auto;
         padding: 0 1;
         margin: 1 0 0 0;
         background: transparent;
-        border-left: wide #10b981;
-    }
+        border-left: wide {theme.user_border};
+    }}
     """
 
     def __init__(self, content: str, **kwargs: Any) -> None:
@@ -208,10 +209,10 @@ class UserMessage(_TimestampClickMixin, Static):
             # The regex only matches tokens starting with / or @
             if token.startswith("/") and start == 0:
                 # /command at start - yellow/gold
-                parts.append((token, "bold #fbbf24"))
+                parts.append((token, f"bold {theme.command_highlight}"))
             elif token.startswith("@"):
                 # @file mention - green
-                parts.append((token, "bold #10b981"))
+                parts.append((token, f"bold {theme.mention_highlight}"))
             last_end = end
 
         # Add remaining text after last match
@@ -227,15 +228,15 @@ class QueuedUserMessage(Static):
     This is an ephemeral widget that gets removed when the message is dequeued.
     """
 
-    DEFAULT_CSS = """
-    QueuedUserMessage {
+    DEFAULT_CSS = f"""
+    QueuedUserMessage {{
         height: auto;
         padding: 0 1;
         margin: 1 0 0 0;
         background: transparent;
-        border-left: wide #6b7280;
+        border-left: wide {theme.queued_border};
         opacity: 0.6;
-    }
+    }}
     """
 
     def __init__(self, content: str, **kwargs: Any) -> None:
@@ -251,7 +252,7 @@ class QueuedUserMessage(Static):
     def on_mount(self) -> None:
         """Set border style based on charset mode."""
         if _detect_charset_mode() == CharsetMode.ASCII:
-            self.styles.border_left = ("ascii", "#6b7280")
+            self.styles.border_left = ("ascii", theme.queued_border)
 
     def compose(self) -> ComposeResult:
         """Compose the queued user message layout.
@@ -267,7 +268,7 @@ class QueuedUserMessage(Static):
             content = content[1:]
         else:
             prefix = ("> ", f"bold {COLORS['dim']}")
-        yield Static(Content.assemble(prefix, (content, "#9ca3af")))
+        yield Static(Content.assemble(prefix, (content, theme.queued_text)))
 
 
 class AssistantMessage(_TimestampClickMixin, Vertical):
@@ -383,64 +384,64 @@ class ToolCallMessage(Vertical):
     Shows an animated "Running..." indicator while the tool is executing.
     """
 
-    DEFAULT_CSS = """
-    ToolCallMessage {
+    DEFAULT_CSS = f"""
+    ToolCallMessage {{
         height: auto;
         padding: 0 1;
         margin: 0 0 1 0;
         background: transparent;
-        border-left: wide #3b3b3b;
-    }
+        border-left: wide {theme.tool_border};
+    }}
 
-    ToolCallMessage .tool-header {
+    ToolCallMessage .tool-header {{
         height: auto;
-    }
+    }}
 
-    ToolCallMessage .tool-args {
-        color: #6b7280;
+    ToolCallMessage .tool-args {{
+        color: {theme.tool_args};
         margin-left: 3;
-    }
+    }}
 
-    ToolCallMessage .tool-status {
+    ToolCallMessage .tool-status {{
         margin-left: 3;
-    }
+    }}
 
-    ToolCallMessage .tool-status.pending {
-        color: #f59e0b;
-    }
+    ToolCallMessage .tool-status.pending {{
+        color: {theme.tool_status_pending};
+    }}
 
-    ToolCallMessage .tool-status.success {
-        color: #10b981;
-    }
+    ToolCallMessage .tool-status.success {{
+        color: {theme.tool_status_success};
+    }}
 
-    ToolCallMessage .tool-status.error {
-        color: #ef4444;
-    }
+    ToolCallMessage .tool-status.error {{
+        color: {theme.tool_status_error};
+    }}
 
-    ToolCallMessage .tool-status.rejected {
-        color: #f59e0b;
-    }
+    ToolCallMessage .tool-status.rejected {{
+        color: {theme.tool_status_rejected};
+    }}
 
-    ToolCallMessage .tool-output {
+    ToolCallMessage .tool-output {{
         margin-left: 0;
         margin-top: 0;
         padding: 0;
         height: auto;
-    }
+    }}
 
-    ToolCallMessage .tool-output-preview {
+    ToolCallMessage .tool-output-preview {{
         margin-left: 0;
         margin-top: 0;
-    }
+    }}
 
-    ToolCallMessage .tool-output-hint {
+    ToolCallMessage .tool-output-hint {{
         margin-left: 0;
-        color: #6b7280;
-    }
+        color: {theme.tool_output_hint};
+    }}
 
-    ToolCallMessage:hover {
-        border-left: wide #525252;
-    }
+    ToolCallMessage:hover {{
+        border-left: wide {theme.tool_border_hover};
+    }}
     """
 
     # Max lines/chars to show in preview mode
@@ -489,7 +490,9 @@ class ToolCallMessage(Vertical):
         tool_label = format_tool_display(self._tool_name, self._args)
         yield Static(
             Content.from_markup(
-                "[bold #f59e0b]$label[/bold #f59e0b]", label=tool_label
+                f"[bold {theme.tool_header}]$label"
+                f"[/bold {theme.tool_header}]",
+                label=tool_label,
             ),
             classes="tool-header",
         )
@@ -516,7 +519,7 @@ class ToolCallMessage(Vertical):
     def on_mount(self) -> None:
         """Cache widget references and hide all status/output areas initially."""
         if _detect_charset_mode() == CharsetMode.ASCII:
-            self.styles.border_left = ("ascii", "#3b3b3b")
+            self.styles.border_left = ("ascii", theme.tool_border)
 
         self._status_widget = self.query_one("#status", Static)
         self._preview_widget = self.query_one("#output-preview", Static)
@@ -558,7 +561,7 @@ class ToolCallMessage(Vertical):
                     self._status_widget.add_class("error")
                     error_icon = get_glyphs().error
                     self._status_widget.update(
-                        Content.styled(f"{error_icon} Error", "red")
+                        Content.styled(f"{error_icon} Error", theme.error)
                     )
                     self._status_widget.display = True
                 self._update_output_display()
@@ -568,7 +571,7 @@ class ToolCallMessage(Vertical):
                     self._status_widget.add_class("rejected")
                     error_icon = get_glyphs().error
                     self._status_widget.update(
-                        Content.styled(f"{error_icon} Rejected", "yellow")
+                        Content.styled(f"{error_icon} Rejected", theme.warning)
                     )
                     self._status_widget.display = True
             case "skipped":
@@ -585,7 +588,7 @@ class ToolCallMessage(Vertical):
                     self._status_widget.add_class("pending")
                     frame = get_glyphs().spinner_frames[0]
                     self._status_widget.update(
-                        Content.styled(f"{frame} Running...", "yellow")
+                        Content.styled(f"{frame} Running...", theme.warning)
                     )
                     self._status_widget.display = True
             case _:
@@ -623,7 +626,7 @@ class ToolCallMessage(Vertical):
             elapsed = f" ({elapsed_secs}s)"
 
         text = f"{frame} Running...{elapsed}"
-        self._status_widget.update(Content.styled(text, "yellow"))
+        self._status_widget.update(Content.styled(text, theme.warning))
 
     def _stop_animation(self) -> None:
         """Stop the running animation."""
@@ -668,7 +671,11 @@ class ToolCallMessage(Vertical):
             self._status_widget.remove_class("pending")
             self._status_widget.add_class("error")
             error_icon = get_glyphs().error
-            self._status_widget.update(Content.styled(f"{error_icon} Error", "red"))
+            self._status_widget.update(
+                Content.styled(
+                    f"{error_icon} Error", theme.error
+                )
+            )
             self._status_widget.display = True
         # Always show full error - errors should be visible
         self._expanded = True
@@ -683,7 +690,7 @@ class ToolCallMessage(Vertical):
             self._status_widget.add_class("rejected")
             error_icon = get_glyphs().error
             text = f"{error_icon} Rejected"
-            self._status_widget.update(Content.styled(text, "yellow"))
+            self._status_widget.update(Content.styled(text, theme.warning))
             self._status_widget.display = True
 
     def set_skipped(self) -> None:
@@ -836,11 +843,11 @@ class ToolCallMessage(Vertical):
 
         parts: list[Content] = []
         if active:
-            parts.append(Content.styled(f"{active} active", "yellow"))
+            parts.append(Content.styled(f"{active} active", theme.warning))
         if pending:
             parts.append(Content.styled(f"{pending} pending", "dim"))
         if completed:
-            parts.append(Content.styled(f"{completed} done", "green"))
+            parts.append(Content.styled(f"{completed} done", theme.success))
         return Content.styled(" | ", "dim").join(parts) if parts else Content("")
 
     def _format_single_todo(self, item: dict | str) -> Content:  # noqa: PLR6301  # Grouped as method for widget cohesion
@@ -862,12 +869,12 @@ class ToolCallMessage(Vertical):
         glyphs = get_glyphs()
         if status == "completed":
             return Content.assemble(
-                Content.styled(f"    {glyphs.checkmark} done", "green"),
+                Content.styled(f"    {glyphs.checkmark} done", theme.success),
                 Content.styled(f"   {text}", "dim"),
             )
         if status == "in_progress":
             return Content.assemble(
-                Content.styled(f"    {glyphs.circle_filled} active", "yellow"),
+                Content.styled(f"    {glyphs.circle_filled} active", theme.warning),
                 f" {text}",
             )
         return Content.assemble(
@@ -893,11 +900,11 @@ class ToolCallMessage(Vertical):
                     path = Path(str(item))
                     name = path.name
                     if path.suffix in {".py", ".pyx"}:
-                        lines.append(Content.styled(f"    {name}", "#3b82f6"))
+                        lines.append(Content.styled(f"    {name}", theme.ls_python))
                     elif path.suffix in {".json", ".yaml", ".yml", ".toml"}:
-                        lines.append(Content.styled(f"    {name}", "#f59e0b"))
+                        lines.append(Content.styled(f"    {name}", theme.ls_config))
                     elif not path.suffix:
-                        lines.append(Content.styled(f"    {name}/", "#10b981"))
+                        lines.append(Content.styled(f"    {name}/", theme.ls_directory))
                     else:
                         lines.append(Content(f"    {name}"))
 
@@ -1235,38 +1242,38 @@ class ToolCallMessage(Vertical):
 class DiffMessage(_TimestampClickMixin, Static):
     """Widget displaying a diff with syntax highlighting."""
 
-    DEFAULT_CSS = """
-    DiffMessage {
+    DEFAULT_CSS = f"""
+    DiffMessage {{
         height: auto;
         padding: 1;
         margin: 1 0;
         background: $surface;
         border: solid $primary;
-    }
+    }}
 
-    DiffMessage .diff-header {
+    DiffMessage .diff-header {{
         text-style: bold;
         margin-bottom: 1;
-    }
+    }}
 
-    DiffMessage .diff-add {
-        color: #10b981;
-        background: #10b98120;
-    }
+    DiffMessage .diff-add {{
+        color: {theme.diff_added_fg};
+        background: {theme.diff_added_fg}20;
+    }}
 
-    DiffMessage .diff-remove {
-        color: #ef4444;
-        background: #ef444420;
-    }
+    DiffMessage .diff-remove {{
+        color: {theme.diff_removed_fg};
+        background: {theme.diff_removed_fg}20;
+    }}
 
-    DiffMessage .diff-context {
+    DiffMessage .diff-context {{
         color: $text-muted;
-    }
+    }}
 
-    DiffMessage .diff-hunk {
+    DiffMessage .diff-hunk {{
         color: $secondary;
         text-style: bold;
-    }
+    }}
     """
 
     def __init__(self, diff_content: str, file_path: str = "", **kwargs: Any) -> None:
@@ -1300,21 +1307,21 @@ class DiffMessage(_TimestampClickMixin, Static):
     def on_mount(self) -> None:
         """Set border style based on charset mode."""
         if _detect_charset_mode() == CharsetMode.ASCII:
-            self.styles.border = ("ascii", "cyan")
+            self.styles.border = ("ascii", theme.border_focus)
 
 
 class ErrorMessage(_TimestampClickMixin, Static):
     """Widget displaying an error message."""
 
-    DEFAULT_CSS = """
-    ErrorMessage {
+    DEFAULT_CSS = f"""
+    ErrorMessage {{
         height: auto;
         padding: 1;
         margin: 1 0;
-        background: #7f1d1d;
-        color: white;
+        background: {theme.error_bg};
+        color: {theme.error_fg};
         border-left: wide $error;
-    }
+    }}
     """
 
     def __init__(self, error: str, **kwargs: Any) -> None:
@@ -1334,7 +1341,7 @@ class ErrorMessage(_TimestampClickMixin, Static):
     def on_mount(self) -> None:
         """Set border style based on charset mode."""
         if _detect_charset_mode() == CharsetMode.ASCII:
-            self.styles.border_left = ("ascii", "red")
+            self.styles.border_left = ("ascii", theme.error)
 
 
 class AppMessage(Static):
@@ -1405,9 +1412,12 @@ class SummarizationMessage(AppMessage):
         """
         rendered: Content
         if message is None:
-            rendered = Content.styled("✓ Conversation offloaded", "bold cyan")
+            rendered = Content.styled(
+                "✓ Conversation offloaded",
+                f"bold {theme.summarization}",
+            )
         elif isinstance(message, Content):
             rendered = message
         else:
-            rendered = Content.styled(message, "bold cyan")
+            rendered = Content.styled(message, f"bold {theme.summarization}")
         super().__init__(rendered, **kwargs)

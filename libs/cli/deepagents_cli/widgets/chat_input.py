@@ -18,13 +18,13 @@ from textual.widgets import Static, TextArea
 from textual.widgets.text_area import Selection
 
 from deepagents_cli.config import (
-    COLORS,
     MODE_DISPLAY_GLYPHS,
     MODE_PREFIXES,
     PREFIX_TO_MODE,
     CharsetMode,
     _detect_charset_mode,
     get_glyphs,
+    theme,
 )
 from deepagents_cli.input import IMAGE_PLACEHOLDER_PATTERN, VIDEO_PLACEHOLDER_PATTERN
 from deepagents_cli.widgets.autocomplete import (
@@ -805,8 +805,8 @@ class ChatInput(Vertical):
     ChatInput ChatTextArea:focus {
         border: none;
     }
-    """.replace("__MODE_SHELL__", COLORS["mode_shell"]).replace(
-        "__MODE_CMD__", COLORS["mode_command"]
+    """.replace("__MODE_SHELL__", theme.mode_shell).replace(
+        "__MODE_CMD__", theme.mode_command
     )
 
     class Submitted(Message):

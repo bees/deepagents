@@ -8,6 +8,7 @@ from textual.containers import Container
 from textual.screen import ModalScreen
 from textual.widgets import Input, Static
 
+from deepagents_cli.config import theme
 from deepagents_cli.model_config import ModelProfileEntry
 from deepagents_cli.widgets.model_selector import ModelSelectorScreen
 
@@ -692,7 +693,7 @@ class TestFormatOptionLabel:
             status="deprecated",
         )
         assert "(deprecated)" in label.plain
-        assert "[red]" in label.markup
+        assert f"[{theme.error}]" in label.markup
 
     def test_non_deprecated_model_no_tag(self) -> None:
         """Models without deprecated status should not show the tag."""
@@ -716,7 +717,7 @@ class TestFormatOptionLabel:
         )
         assert "(deprecated)" not in label.plain
         assert "(beta)" in label.plain
-        assert "[yellow]" in label.markup
+        assert f"[{theme.warning}]" in label.markup
 
     def test_all_suffixes_coexist(self) -> None:
         """Current + default + deprecated all render together."""
@@ -832,7 +833,7 @@ class TestModelDetailFooter:
         text = str(result)
         assert "*" in text
         assert "= override" in text
-        assert "[yellow]" in result.markup
+        assert f"[{theme.warning}]" in result.markup
 
     def test_format_footer_partial_profile(self) -> None:
         """Profile with only token counts still renders without crash."""
