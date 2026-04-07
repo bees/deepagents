@@ -35,6 +35,64 @@ from deepagents.backends.utils import (
 
 logger = logging.getLogger(__name__)
 
+# Cache for fast glob tool availability
+_fd_available: bool | None = None
+_rg_available: bool | None = None
+
+
+def _check_fd_available() -> bool:
+    """Check if fd (fd-find) is available on the system."""
+    global _fd_available  # noqa: PLW0603
+    if _fd_available is None:
+        try:
+            subprocess.run(
+                ["fd", "--version"],
+                capture_output=True,
+                check=True,
+                timeout=2,
+            )
+            _fd_available = True
+        except (subprocess.SubprocessError, FileNotFoundError, OSError):
+            _fd_available = False
+    return _fd_available
+
+
+def _check_rg_available() -> bool:
+    """Check if ripgrep (rg) is available on the system."""
+    global _rg_available  # noqa: PLW0603
+    if _rg_available is None:
+        try:
+            subprocess.run(
+                ["rg", "--version"],
+                capture_output=True,
+                check=True,
+                timeout=2,
+            )
+            _rg_available = True
+        except (subprocess.SubprocessError, FileNotFoundError, OSError):
+            _rg_available = False
+    return _rg_available
+
+
+def _convert_glob_to_fd_pattern(pattern: str) -> str:
+    """Convert a glob pattern to fd's glob syntax.
+
+    fd uses glob patterns directly, but we need to handle some edge cases:
+    - **/*.py -> **/*.py (fd handles this)
+    - *.py -> *.py (fd handles this)
+    - /subdir/**/*.md -> subdir/**/*.md (strip leading /)
+
+    Args:
+        pattern: Glob pattern to convert.
+
+    Returns:
+        Pattern suitable for fd.
+    """
+    # Strip leading slash if present
+    if pattern.startswith("/"):
+        pattern = pattern.lstrip("/")
+    return pattern
+
 
 class FilesystemBackend(BackendProtocol):
     """Backend that reads and writes files directly from the filesystem.
@@ -598,6 +656,9 @@ class FilesystemBackend(BackendProtocol):
     def glob(self, pattern: str, path: str = "/") -> GlobResult:  # noqa: C901, PLR0912  # Complex virtual_mode logic
         """Find files matching a glob pattern.
 
+        Uses `fd` or `rg --files -g` for fast parallel search when available,
+        falls back to Python's pathlib.rglob() otherwise.
+
         Args:
             pattern: Glob pattern to match files against (e.g., `'*.py'`, `'**/*.txt'`).
             path: Base directory to search from. Defaults to root (`/`).
@@ -616,9 +677,197 @@ class FilesystemBackend(BackendProtocol):
         if not search_path.exists() or not search_path.is_dir():
             return GlobResult(matches=[])
 
+        # Try fast glob with fd or rg first
+        results = self._glob_fast(pattern, search_path)
+        if results is not None:
+            results.sort(key=lambda x: x.get("path", ""))
+            return GlobResult(matches=results)
+
+        # Fallback to Python rglob
+        results = self._glob_python(pattern, search_path)
+        results.sort(key=lambda x: x.get("path", ""))
+        return GlobResult(matches=results)
+
+    def _glob_fast(self, pattern: str, search_path: Path) -> list[FileInfo] | None:
+        """Fast glob using fd or rg if available.
+
+        Args:
+            pattern: Glob pattern to match.
+            search_path: Directory to search.
+
+        Returns:
+            List of FileInfo dicts, or None if fast tools unavailable.
+        """
+        # Try fd first (fastest)
+        if _check_fd_available():
+            return self._glob_with_fd(pattern, search_path)
+
+        # Try rg as fallback
+        if _check_rg_available():
+            return self._glob_with_rg(pattern, search_path)
+
+        return None
+
+    def _glob_with_fd(self, pattern: str, search_path: Path) -> list[FileInfo] | None:
+        """Use fd (fd-find) for fast parallel globbing.
+
+        Args:
+            pattern: Glob pattern to match.
+            search_path: Directory to search.
+
+        Returns:
+            List of FileInfo dicts, or None on error.
+        """
+        # Convert pattern for fd - need to handle recursive patterns
+        # rglob behavior: *.py should match files in all subdirectories
+        # fd with --glob needs ** for recursive matching
+        fd_pattern = _convert_glob_to_fd_pattern(pattern)
+
+        # If pattern doesn't contain **, prepend **/ to make it recursive
+        # This matches pathlib.rglob() behavior where *.py matches all .py files recursively
+        if "**" not in fd_pattern:
+            fd_pattern = "**/" + fd_pattern
+
+        try:
+            result = subprocess.run(
+                [
+                    "fd",
+                    "--type", "f",  # files only
+                    "--glob",  # use glob pattern matching
+                    "--full-path",  # match against full path
+                    "--hidden",  # include hidden files
+                    "--no-ignore-vcs",  # don't respect .gitignore (match rglob behavior)
+                    "--follow",  # follow symlinks
+                    fd_pattern,
+                    str(search_path),
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=60,
+            )
+            paths = result.stdout.strip().split("\n")
+            if not paths or paths == [""]:
+                return []
+
+            return self._build_file_infos(paths, search_path)
+        except (subprocess.SubprocessError, OSError) as e:
+            logger.debug("fd glob failed, falling back to Python: %s", e)
+            return None
+
+    def _glob_with_rg(self, pattern: str, search_path: Path) -> list[FileInfo] | None:
+        """Use ripgrep for fast file listing with glob filtering.
+
+        Args:
+            pattern: Glob pattern to match.
+            search_path: Directory to search.
+
+        Returns:
+            List of FileInfo dicts, or None on error.
+        """
+        # Convert pattern for rg - need to handle recursive patterns
+        rg_pattern = _convert_glob_to_fd_pattern(pattern)
+
+        # If pattern doesn't contain **, prepend **/ to make it recursive
+        # This matches pathlib.rglob() behavior where *.py matches all .py files recursively
+        if "**" not in rg_pattern:
+            rg_pattern = "**/" + rg_pattern
+
+        try:
+            result = subprocess.run(
+                [
+                    "rg",
+                    "--files",
+                    "--glob", rg_pattern,
+                    "--hidden",  # include hidden files
+                    "--no-ignore-vcs",  # don't respect .gitignore (match rglob behavior)
+                    "--follow",  # follow symlinks
+                    str(search_path),
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=60,
+            )
+            paths = result.stdout.strip().split("\n")
+            if not paths or paths == [""]:
+                return []
+
+            return self._build_file_infos(paths, search_path)
+        except (subprocess.SubprocessError, OSError) as e:
+            logger.debug("rg glob failed, falling back to Python: %s", e)
+            return None
+
+    def _build_file_infos(self, paths: list[str], search_path: Path) -> list[FileInfo]:
+        """Build FileInfo dicts from file paths.
+
+        Args:
+            paths: List of absolute file paths.
+            search_path: The search directory (for virtual mode filtering).
+
+        Returns:
+            List of FileInfo dicts.
+        """
+        results: list[FileInfo] = []
+        for file_path in paths:
+            if not file_path:
+                continue
+            try:
+                p = Path(file_path)
+                if self.virtual_mode:
+                    try:
+                        p.resolve().relative_to(self.cwd)
+                    except ValueError:
+                        continue
+                    try:
+                        virt = self._to_virtual_path(p)
+                    except ValueError:
+                        logger.debug("Skipping glob result outside root: %s", p)
+                        continue
+                    except OSError:
+                        logger.warning("Could not resolve glob result path: %s", p, exc_info=True)
+                        continue
+                    try:
+                        st = p.stat()
+                        results.append(
+                            {
+                                "path": virt,
+                                "is_dir": False,
+                                "size": int(st.st_size),
+                                "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006
+                            }
+                        )
+                    except OSError:
+                        results.append({"path": virt, "is_dir": False})
+                else:
+                    try:
+                        st = p.stat()
+                        results.append(
+                            {
+                                "path": file_path,
+                                "is_dir": False,
+                                "size": int(st.st_size),
+                                "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006
+                            }
+                        )
+                    except OSError:
+                        results.append({"path": file_path, "is_dir": False})
+            except (OSError, ValueError):
+                continue
+        return results
+
+    def _glob_python(self, pattern: str, search_path: Path) -> list[FileInfo]:
+        """Fallback Python glob using pathlib.rglob().
+
+        Args:
+            pattern: Glob pattern to match.
+            search_path: Directory to search.
+
+        Returns:
+            List of FileInfo dicts.
+        """
         results: list[FileInfo] = []
         try:
-            # Use recursive globbing to match files in subdirectories as tests expect
             for matched_path in search_path.rglob(pattern):
                 try:
                     is_file = matched_path.is_file()
@@ -640,13 +889,12 @@ class FilesystemBackend(BackendProtocol):
                                 "path": abs_path,
                                 "is_dir": False,
                                 "size": int(st.st_size),
-                                "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # Local filesystem timestamps don't need timezone
+                                "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006
                             }
                         )
                     except OSError:
                         results.append({"path": abs_path, "is_dir": False})
                 else:
-                    # Virtual mode: use Path for cross-platform support
                     try:
                         virt = self._to_virtual_path(matched_path)
                     except ValueError:
@@ -662,7 +910,7 @@ class FilesystemBackend(BackendProtocol):
                                 "path": virt,
                                 "is_dir": False,
                                 "size": int(st.st_size),
-                                "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # Local filesystem timestamps don't need timezone
+                                "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006
                             }
                         )
                     except OSError:
@@ -670,8 +918,7 @@ class FilesystemBackend(BackendProtocol):
         except (OSError, ValueError):
             pass
 
-        results.sort(key=lambda x: x.get("path", ""))
-        return GlobResult(matches=results)
+        return results
 
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
         """Upload multiple files to the filesystem.
